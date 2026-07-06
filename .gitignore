@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual env / uv
+# NOTE: uv.lock is intentionally NOT ignored — commit it for reproducible installs.
+.venv/
+
+# Tooling caches
+.mypy_cache/
+.dmypy.json
+.ruff_cache/
+.pytest_cache/
+.import_linter_cache/
+
+# Test coverage
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# AWS CDK
+# NOTE: cdk.context.json is intentionally NOT ignored — commit it to cache context lookups.
+cdk.out/
+.cdk.staging/
+
+# Node (the AWS CDK CLI is npm-based; node_modules appears if installed locally)
+node_modules/
+
+# Env / secrets (but keep a committed template)
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+*.swp
+*~

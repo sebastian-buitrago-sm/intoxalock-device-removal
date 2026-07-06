@@ -1,0 +1,60 @@
+[tool.uv.workspace]
+members = ["packages/*", "apps/*"]
+
+[dependency-groups]
+dev = [
+    "ruff",
+    "mypy",
+    "pytest",
+    "pytest-asyncio",
+    "import-linter",
+    "pydantic",
+    "aws-cdk-lib",
+    "constructs",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "ANN"]
+ignore = ["ANN101", "ANN102"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+plugins = ["pydantic.mypy"]
+files = ["packages", "apps", "infra"]
+mypy_path = "infra"
+
+[[tool.mypy.overrides]]
+module = ["elevenlabs.*"]
+ignore_missing_imports = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[tool.pytest.ini_options]
+testpaths = ["packages", "apps"]
+asyncio_mode = "auto"
+
+[tool.importlinter]
+root_packages = ["core", "lambda_hello", "elevenlabs_agent"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "core is a pure sink - must not import apps"
+type = "forbidden"
+source_modules = ["core"]
+forbidden_modules = ["lambda_hello", "elevenlabs_agent"]
