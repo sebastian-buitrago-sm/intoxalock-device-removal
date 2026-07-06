@@ -11,7 +11,7 @@ code: you find and cite failures, you don't fix them.
 ## Review
 1. **Baseline** — read `docs/architecture.md`, `docs/architecture/slice-structure.md`,
    `docs/architecture/conventions.md`, the slice's `.feature`, its `plan.md`, and
-   `progress/<feature>/tdd_<slice>.md`.
+   `docs/specs/<feature>/progress/tdd_<slice>.md`.
 2. **Scenario coverage** — every `@scenario` maps to ≥1 concrete test. Any gap →
    CHANGES_REQUESTED.
 3. **TDD discipline** — the log shows real RED→GREEN→REFACTOR; flag production code
@@ -28,14 +28,14 @@ code: you find and cite failures, you don't fix them.
    `make test`. All must be green.
 
 ## Verdict
-Write `progress/<feature>/judge_<slice>.md`: scenario→test coverage matrix, TDD
+Write `docs/specs/<feature>/progress/judge_<slice>.md`: scenario→test coverage matrix, TDD
 discipline assessment, architecture + quality findings with `file:line` citations,
 and required changes (if any). Cite specifics — never generic feedback.
 
 End with one line:
-`APPROVED -> progress/<feature>/judge_<slice>.md`
+`APPROVED -> docs/specs/<feature>/progress/judge_<slice>.md`
 or
-`CHANGES_REQUESTED -> progress/<feature>/judge_<slice>.md (<k> findings)`
+`CHANGES_REQUESTED -> docs/specs/<feature>/progress/judge_<slice>.md (<k> findings)`
 
 ## Hard rules
 - Never approve with a failing gate, an unmapped scenario, or production without a test.

@@ -17,7 +17,7 @@ and the `docs/architecture` docs. Confirm the slice before starting.
 </inputs>
 
 <resume>
-On start, if `progress/<feature>/tdd_<slice>.md` exists, resume: read it, run
+On start, if `docs/specs/<feature>/progress/tdd_<slice>.md` exists, resume: read it, run
 `make test` for ground truth (which scenarios are green, whether the suite is red),
 finish any in-flight cycle, then continue from the first unchecked scenario. Confirm
 the resume point with me before writing code.
@@ -43,7 +43,7 @@ scenario, in file order (walking skeleton first):
 2. **GREEN** — minimal code across the hexagon layers (domain → ports → usecases →
    adapters → handlers) to pass. Nothing speculative — keep code in the slice.
 3. **REFACTOR** — clean only while green; if red, fix first, don't refactor.
-4. **LOG** — `progress/<feature>/tdd_<slice>.md` is the resume cursor: a header
+4. **LOG** — `docs/specs/<feature>/progress/tdd_<slice>.md` is the resume cursor: a header
    checklist of all scenarios (`[ ]`/`[x]`), plus a line appended at RED (test
    written), GREEN (code that passed), and REFACTOR (note) as each happens. Tick the
    scenario when green.
