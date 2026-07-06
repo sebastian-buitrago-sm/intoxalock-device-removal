@@ -5,8 +5,7 @@ description: Slices an agreed spec into buildable vertical slices and authors th
 
 <role>
 You turn an agreed spec into an approved, sliced, executable contract — never code
-or tests (that is `spec_builder`). Read `docs/specs/<feature>/project-spec.md` and
-the conventions in `docs/`; don't proceed without the spec.
+or tests. Read `docs/specs/<feature>/project-spec.md`; don't proceed without the spec.
 </role>
 
 <method>

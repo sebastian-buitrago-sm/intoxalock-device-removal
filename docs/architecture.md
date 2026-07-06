@@ -1,58 +1,46 @@
 # Architecture
 
-**Modular monolith** built on FastAPI. Each feature follows **hexagonal architecture** (ports & adapters) and is **vertically sliced** for isolation — low coupling, high cohesion. Module boundaries extend to the data layer: every module owns a dedicated Postgres schema.
+**`uv`-workspace monorepo.** Runtime code splits into **apps** (each a deployable — usually one AWS Lambda behind API Gateway) and **packages** (shared libraries). Every app is internally a **hexagon** (ports & adapters), **vertically sliced** into features. Infrastructure for the whole repo is centralized in `infra/` (AWS CDK).
 
-## Philosophy
+## Terminology
 
-- Features are self-contained vertical slices. A feature owns its domain, use cases, adapters, handlers, and migrations.
-- Inside a feature, dependencies point inward: `handlers → usecases → domain`, with `adapters` implementing ports defined in `usecases`.
-- `shared/` is feature-agnostic only. If only one feature uses it, it belongs in that feature.
-- ORM is **SQLModel**. Schemas are isolated per module and live **only** in the adapters layer (`features/<module>/adapters/db/`) — never imported from `domain`, `usecases`, or other modules.
+- **app** — one deployable under `apps/`; holds one or more slices.
+- **package** — a shared library under `packages/`, imported by apps; a pure sink.
+- **slice** — a vertical feature inside an app (`features/<slice>/`); owns its domain, use cases, adapters, handlers, and data.
+- **app-local `shared/`** — feature-agnostic code shared across slices *within one app*.
 
-## Non-negotiable dependency rules
+## Reuse ladder
+
+Promote code outward only on real demand: a slice's own code → app-local `shared/` (2+ slices need it) → a `packages/*` library (2+ apps need it).
+
+Share deliberately: shared code couples its consumers, so promote only what is a genuine, stable abstraction. Prefer a little duplication over the wrong abstraction.
+
+## Dependency rules
 
 `A → B` reads "A imports from B." Enforced by `import-linter`.
 
+Across the workspace:
 ```
-shared/*    →  features/*                          ❌ never
-features/A  →  features/B/{domain,usecases,...}    ❌ never  (only features/B/api)
-domain/     →  fastapi | sqlmodel | sqlalchemy     ❌ never
-usecases/   →  fastapi | sqlmodel | adapters/      ❌ never  (depend on ports)
-handlers/   →  adapters/                           ❌ never  (always via deps.py)
-adapters/   →  handlers/                           ❌ never
-src/*       →  tests/*                             ❌ never
+packages/*  →  apps/*        ❌  packages are pure sinks
+apps/A      →  apps/B        ❌  apps never import each other
+packages/B  →  packages/A    ✅  only when declared (no cycles)
+apps/*      →  packages/*    ✅
 ```
 
-Modules **do** talk to each other — only through `features/<other>/api`. That file is the published contract; everything else is private.
+Apps share behavior through a package, never by importing a sibling app.
 
-If two modules keep reaching past `api.py`, or one `api.py` grows without bound, the boundary is wrong. Merge the modules, or extract the shared concept into its own module or into `shared/`.
-
-## Project Folder Structure 
-
+Inside an app, dependencies point inward (`handlers → usecases → domain`, `adapters` implement ports):
 ```
-  pyproject.toml
-  src/
-    app/                      composition root
-      __init__.py
-      main.py                 create_app, lifespan, registers shared error handlers, loops module.register
-    features/                 one package per module
-      <module>/
-    shared/                   feature-agnostic foundation
-      config                  global configurations
-      errors                  global domain errors
-
-  tests/
-    <module>/unit/...
-    <module>/integration/...
-    conftest.py
+features/A  →  features/B internals   ❌  only via features/B/api
+shared/     →  features/*             ❌  app-local shared stays feature-agnostic
+domain/     →  boto3 | AWS | frameworks   ❌  domain is pure
+usecases/   →  adapters/ | boto3      ❌  depend on ports
+handlers/   ↔  adapters/              ❌  wired only in the composition root
 ```
 
+Slices talk only through `features/<other>/api`. If two slices keep reaching past `api.py`, the boundary is wrong — merge them or promote the shared concept.
 
 ## Topic docs
 
-- [module-structure.md](./architecture/module-structure.md) — per-feature template, layer rules, domain/use cases, handlers, DI, settings, app composition.
-- [conventions.md](./architecture/conventions.md) — REST, RFC 9457 errors, testing, observability, comments.
-
-
-
-
+- [slice-structure.md](./architecture/slice-structure.md) — the hexagon inside an app: layers, composition root, persistence.
+- [conventions.md](./architecture/conventions.md) — REST over API Gateway, RFC 9457 errors, testing, observability.
