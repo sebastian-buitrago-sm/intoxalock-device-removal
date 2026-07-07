@@ -10,12 +10,17 @@ Handlers emit Lambda proxy responses (`{statusCode, headers, body}`).
 
 - Plural nouns; prefer query filters over deep paths.
 - **Lists** return a paginated envelope (never a bare array) with an opaque cursor.
-- REST status codes: 201+`Location` on create, 204 on delete, 409 on conflict, 422 on validation.
+- REST status codes: 201+`Location` on create, 204 on delete, 400 on a malformed body, 409 on conflict, 422 on validation.
+- Status codes, methods, and paths are constants (`http.HTTPStatus`/`HTTPMethod`, a slice `routes.py`), never literals.
 - **Versioning** is additive; a new `/v<n+1>` only for breaking changes.
 
 ## Errors — RFC 9457 Problem Details
 
-All error responses use `application/problem+json`. Domain errors inherit shared bases mapped centrally to status codes (`NotFoundError`→404, `ConflictError`→409, `ValidationError`→422, `UnauthorizedError`→401, `ForbiddenError`→403); `Problem` fields are derived from the error.
+Every error response is `application/problem+json`, rendered at a **single boundary in the composition root** — validation (422), malformed body (400), unknown route (404), and unexpected failures (500) all map there. Handlers and use cases only raise; they never format errors.
+
+Domain errors are a pure taxonomy (`DomainError` + subclasses) carrying **no** HTTP knowledge. A type→status map in the HTTP adapter (`shared/handlers/problem.py`) assigns the code (`ValidationError`→422 today; `NotFoundError`→404, `ConflictError`→409, etc. as slices need them). A raised `pydantic.ValidationError` is treated as 422 alongside them.
+
+Bodies carry the five standard members — `type`, `title`, `status`, `detail`, `instance`. With `type` `about:blank`, `title` is the HTTP status phrase and `detail` the specific message. Extension members (`errors` for per-field validation, `traceId`) are additive and optional.
 
 ## Testing
 

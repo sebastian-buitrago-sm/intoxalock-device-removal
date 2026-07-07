@@ -3,7 +3,11 @@ name = "todo-lambda"
 version = "0.1.0"
 description = "Full-CRUD Todo API AWS Lambda, backed by an in-memory store."
 requires-python = ">=3.11"
-dependencies = ["core", "pydantic"]
+dependencies = [
+    "core",
+    "pydantic",
+    "structlog>=26.1.0",
+]
 
 [build-system]
 requires = ["hatchling"]

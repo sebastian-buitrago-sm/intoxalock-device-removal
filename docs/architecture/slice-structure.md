@@ -16,9 +16,9 @@ handlers → deps → usecases → ports ← adapters
 - **usecases** — one business operation per callable class. Takes ports as dependencies, returns domain results, raises domain errors (never HTTP/AWS). Inputs are frozen command/query models.
 - **ports** — `Protocol`s with use-case-driven names (not generic CRUD), each shipped with a hand-rolled in-memory fake.
 - **adapters** — port implementations: data-store repositories, external service clients.
-- **handlers** — the API Gateway inbound adapter: parse the proxy event → build command → call use case → map result (or domain error) to a `{statusCode, body}` response. No business logic.
+- **handlers** — the API Gateway inbound adapter: parse the proxy event → build command → call use case → render the result. Happy-path only; raised errors propagate to the composition root's boundary. No business logic.
 
-Slices expose a public surface (`api.py`) for other slices; everything else is private.
+Each layer is a package folder (`domain/`, `usecases/`, `ports/`, `adapters/`, `handlers/`), one file per entity/use case/adapter, public names re-exported from its `__init__`. `shared/` is layered the same way (`shared/domain`, `shared/handlers`). Slices expose a public surface (`api.py`) for other slices; everything else is private.
 
 ## Composition root
 
@@ -26,6 +26,7 @@ Each app's Lambda entry point is also its composition root — the only place th
 
 - **Cold-start singletons** (config, data-store clients, HTTP pools, logger) are built once at module scope and reused across warm invocations.
 - **Routing** maps the event `(method, path)` to a slice handler.
+- **Error boundary** — the only place that catches raised errors (domain and `pydantic.ValidationError`) and renders them to Problem Details; per-slice handlers stay happy-path.
 - **Per-request**: build use cases from ports (reusing the singletons) and dispatch. Handlers receive fully-built use cases — they never construct adapters.
 
 ## Persistence

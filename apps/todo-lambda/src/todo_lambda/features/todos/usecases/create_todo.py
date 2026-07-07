@@ -17,11 +17,14 @@ class CreateTodo:
         self._repo = repo
 
     def __call__(self, command: CreateTodoCommand) -> Todo:
-        todo = Todo.create(
+        now = datetime.now(UTC)
+        todo = Todo(
             id=str(uuid4()),
-            title=command.title,
+            title=command.title or "",
             description=command.description,
-            created_at=datetime.now(UTC),
+            completed=False,
+            created_at=now,
+            updated_at=now,
         )
         self._repo.add(todo)
         return todo

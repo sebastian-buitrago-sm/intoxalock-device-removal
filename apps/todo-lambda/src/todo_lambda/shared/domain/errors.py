@@ -1,6 +1,6 @@
 class DomainError(Exception):
-    status_code: int
+    pass
 
 
 class ValidationError(DomainError):
-    status_code = 422
+    pass
