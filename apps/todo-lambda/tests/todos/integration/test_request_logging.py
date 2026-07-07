@@ -19,34 +19,36 @@ class _Context:
     aws_request_id = "req-123"
 
 
-def _canonical_line(captured: str) -> dict[str, Any]:
+class _OtherContext:
+    aws_request_id = "req-456"
+
+
+def _request_log_line(captured: str) -> dict[str, Any]:
     events = [json.loads(line) for line in captured.splitlines() if line.strip()]
-    canonical = [event for event in events if event.get("event") == "request.completed"]
-    assert len(canonical) == 1
-    return cast(dict[str, Any], canonical[0])
+    matches = [event for event in events if event.get("event") == "request_completed"]
+    assert len(matches) == 1
+    return cast(dict[str, Any], matches[0])
 
 
-def test_successful_create_emits_canonical_line(capsys: pytest.CaptureFixture[str]) -> None:
+def test_successful_create_logs_request_fields(capsys: pytest.CaptureFixture[str]) -> None:
     handler(
         {"httpMethod": "POST", "path": Routes.TODOS, "body": json.dumps({"title": "Buy milk"})},
         _Context(),
     )
 
-    line = _canonical_line(capsys.readouterr().out)
+    line = _request_log_line(capsys.readouterr().out)
     assert line["aws_request_id"] == "req-123"
     assert line["http_method"] == "POST"
     assert line["path"] == Routes.TODOS
     assert line["route"] == "create_todo"
     assert line["status_code"] == HTTPStatus.CREATED
-    assert line["outcome"] == "success"
 
 
-def test_validation_failure_emits_client_error_line(capsys: pytest.CaptureFixture[str]) -> None:
+def test_validation_failure_logs_error_field(capsys: pytest.CaptureFixture[str]) -> None:
     handler({"httpMethod": "POST", "path": Routes.TODOS, "body": json.dumps({})}, _Context())
 
-    line = _canonical_line(capsys.readouterr().out)
+    line = _request_log_line(capsys.readouterr().out)
     assert line["status_code"] == HTTPStatus.UNPROCESSABLE_ENTITY
-    assert line["outcome"] == "client_error"
     assert line["error"] == "ValidationError"
 
 
@@ -58,3 +60,15 @@ def test_no_request_body_is_never_logged(capsys: pytest.CaptureFixture[str]) -> 
     )
 
     assert secret_title not in capsys.readouterr().out
+
+
+def test_bound_context_does_not_leak_between_requests(capsys: pytest.CaptureFixture[str]) -> None:
+    handler({"httpMethod": "POST", "path": Routes.TODOS, "body": json.dumps({})}, _Context())
+    handler({"httpMethod": "GET", "path": Routes.UNKNOWN, "body": None}, _OtherContext())
+
+    lines = [json.loads(line) for line in capsys.readouterr().out.splitlines() if line.strip()]
+    matches = [event for event in lines if event.get("event") == "request_completed"]
+    assert matches[-1]["aws_request_id"] == "req-456"
+    assert matches[-1]["http_method"] == "GET"
+    assert matches[-1]["path"] == Routes.UNKNOWN
+    assert "error" not in matches[-1]

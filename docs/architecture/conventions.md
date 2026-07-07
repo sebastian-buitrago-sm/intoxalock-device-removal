@@ -31,7 +31,8 @@ Test behavior, not implementation. Assert on outcomes (returns, errors, persiste
 
 ## Observability
 
-Structured JSON logging via `structlog`, built once at cold start.
+Structured JSON logging via `structlog`, built once at cold start (`configure_logging()`/`get_logger()` in `shared/observability`).
 
-- **Canonical logs**: emit one wide, structured line per invocation summarizing the whole request — bound context (`aws_request_id`, actor, tenant), the operation, and its outcome — instead of scattering many small logs.
+- Bind request-scoped context (`aws_request_id`, `http_method`, `path`, ...) with `structlog.contextvars.bind_contextvars` at the top of the composition root, and `clear_contextvars()` in a `finally` so nothing leaks into the next warm-container invocation. Bound context rides along on every log call without threading a logger through use cases.
+- Log fields as keyword arguments on the call site (`log.info("request_completed", status_code=..., route=...)`); no derived-outcome or log-level abstraction on top of `structlog`.
 - No secrets, auth headers, raw bodies, or `print()`. Propagate the request id as `X-Request-ID` on outbound calls.

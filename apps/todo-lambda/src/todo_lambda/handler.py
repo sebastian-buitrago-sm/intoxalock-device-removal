@@ -2,18 +2,14 @@ from http import HTTPMethod, HTTPStatus
 from typing import Any
 
 from pydantic import ValidationError as PydanticValidationError
+from structlog.contextvars import bind_contextvars, clear_contextvars
 
 from todo_lambda.features.todos.adapters import InMemoryTodoRepository
 from todo_lambda.features.todos.handlers import TODOS, create_todo_handler
 from todo_lambda.features.todos.usecases import CreateTodo
 from todo_lambda.shared.domain import DomainError
 from todo_lambda.shared.handlers import BadRequest, problem, problem_response
-from todo_lambda.shared.observability import (
-    CanonicalEntry,
-    canonical_log,
-    configure_logging,
-    get_logger,
-)
+from todo_lambda.shared.observability import configure_logging, get_logger
 
 configure_logging()
 
@@ -25,8 +21,11 @@ def handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     method = event.get("httpMethod")
     path = event.get("path")
     trace_id = getattr(context, "aws_request_id", None)
-    with canonical_log(_log, aws_request_id=trace_id, http_method=method, path=path) as entry:
-        return _dispatch(event, method, path, trace_id, entry)
+    bind_contextvars(aws_request_id=trace_id, http_method=method, path=path)
+    try:
+        return _dispatch(event, method, path, trace_id)
+    finally:
+        clear_contextvars()
 
 
 def _dispatch(
@@ -34,14 +33,13 @@ def _dispatch(
     method: str | None,
     path: str | None,
     trace_id: str | None,
-    entry: CanonicalEntry,
 ) -> dict[str, Any]:
     try:
         if method == HTTPMethod.POST and path == TODOS:
-            entry.record(route="create_todo")
-            return _finish(entry, create_todo_handler(event, CreateTodo(_repo)))
-        return _finish(
-            entry,
+            return _log_and_return(
+                create_todo_handler(event, CreateTodo(_repo)), route="create_todo"
+            )
+        return _log_and_return(
             problem(
                 HTTPStatus.NOT_FOUND,
                 f"No route matches {method} {path}.",
@@ -51,31 +49,28 @@ def _dispatch(
             route="unmatched",
         )
     except BadRequest as error:
-        return _finish(
-            entry,
+        return _log_and_return(
             problem(HTTPStatus.BAD_REQUEST, str(error), instance=path, trace_id=trace_id),
             error=type(error).__name__,
         )
     except (DomainError, PydanticValidationError) as error:
-        return _finish(
-            entry,
+        return _log_and_return(
             problem_response(error, instance=path, trace_id=trace_id),
             error=type(error).__name__,
         )
     except Exception as error:
-        _log.exception("unhandled_error")
-        return _finish(
-            entry,
-            problem(
-                HTTPStatus.INTERNAL_SERVER_ERROR,
-                "An unexpected error occurred.",
-                instance=path,
-                trace_id=trace_id,
-            ),
-            error=type(error).__name__,
+        response = problem(
+            HTTPStatus.INTERNAL_SERVER_ERROR,
+            "An unexpected error occurred.",
+            instance=path,
+            trace_id=trace_id,
         )
+        _log.exception(
+            "request_completed", error=type(error).__name__, status_code=response["statusCode"]
+        )
+        return response
 
 
-def _finish(entry: CanonicalEntry, response: dict[str, Any], **fields: object) -> dict[str, Any]:
-    entry.record(status_code=response["statusCode"], **fields)
+def _log_and_return(response: dict[str, Any], **fields: object) -> dict[str, Any]:
+    _log.info("request_completed", status_code=response["statusCode"], **fields)
     return response
