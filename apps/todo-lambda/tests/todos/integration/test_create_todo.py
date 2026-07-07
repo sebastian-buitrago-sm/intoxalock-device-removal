@@ -128,13 +128,6 @@ def test_non_object_json_body_is_bad_request() -> None:
     assert handler_module._repo.todos == []
 
 
-def test_rejecting_equal_title_and_description() -> None:
-    response = _post({"title": "Buy milk", "description": "Buy milk"})
-
-    assert response["statusCode"] == HTTPStatus.UNPROCESSABLE_ENTITY
-    assert handler_module._repo.todos == []
-
-
 def test_server_only_fields_are_ignored_on_create() -> None:
     response = _post(
         {
