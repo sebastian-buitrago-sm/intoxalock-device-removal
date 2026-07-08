@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 
 _APP_ROOT = Path(__file__).resolve().parents[2]
-_API_KEY_ENV = "XI_API_KEY"
+_API_KEY_ENV = "ELEVENLABS_API_KEY"
 _CONFIG_DIR_ENV = "ELEVENLABS_AGENT_CONFIG_DIR"
 
 

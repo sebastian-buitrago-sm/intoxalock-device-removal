@@ -24,7 +24,7 @@ def test_load_settings_merges_toml_and_secret(
 ) -> None:
     _write_config(tmp_path, "dev")
     monkeypatch.setenv("ELEVENLABS_AGENT_CONFIG_DIR", str(tmp_path))
-    monkeypatch.setenv("XI_API_KEY", "secret-key")
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "secret-key")
 
     settings = load_settings("dev")
 
@@ -38,17 +38,17 @@ def test_load_settings_merges_toml_and_secret(
 def test_load_settings_requires_api_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _write_config(tmp_path, "dev")
     monkeypatch.setenv("ELEVENLABS_AGENT_CONFIG_DIR", str(tmp_path))
-    monkeypatch.delenv("XI_API_KEY", raising=False)
-    # A real .env on the developer's machine must not leak XI_API_KEY into this test.
+    monkeypatch.delenv("ELEVENLABS_API_KEY", raising=False)
+    # A real .env on the developer's machine must not leak ELEVENLABS_API_KEY into this test.
     monkeypatch.setattr("elevenlabs_agent.config.load_dotenv", lambda *a, **kw: False)
 
-    with pytest.raises(RuntimeError, match="XI_API_KEY"):
+    with pytest.raises(RuntimeError, match="ELEVENLABS_API_KEY"):
         load_settings("dev")
 
 
 def test_load_settings_unknown_env_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ELEVENLABS_AGENT_CONFIG_DIR", str(tmp_path))
-    monkeypatch.setenv("XI_API_KEY", "secret-key")
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "secret-key")
 
     with pytest.raises(FileNotFoundError):
         load_settings("staging")

@@ -18,7 +18,7 @@ import-linter purity contract for this package. Do not add one.
 
 ```
 src/elevenlabs_agent/
-  config.py        # Settings: config/<env>.toml + XI_API_KEY from the env
+  config.py        # Settings: config/<env>.toml + ELEVENLABS_API_KEY from the env
   client.py        # builds the ElevenLabs client from Settings
   definition/       # PURE, env-independent source of truth (prompt, tools, eval, agent config)
   sync/             # create a brand-new agent, or push the definition to an existing one (idempotent)
@@ -32,7 +32,7 @@ tests/agent/        # ElevenLabs conversational tests (simulation + tool-call, r
 
 One definition, two targets. Non-secret, per-environment identifiers
 (`agent_id`, `phone_number_id`, webhook URL, `save_tool_id`, concurrency) live
-in `config/<env>.toml`; the secret `XI_API_KEY` comes from the environment (a
+in `config/<env>.toml`; the secret `ELEVENLABS_API_KEY` comes from the environment (a
 git-ignored `.env` works — see `.env.example`). Every command selects its
 target with `--env`.
 
