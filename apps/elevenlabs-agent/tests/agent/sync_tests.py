@@ -7,23 +7,27 @@ suite one level up, which covers this project's own Python code.
 Tests are organized into suites under suites/, one module per suite, mirroring
 scenarios.feature (T1..T4 tiers, E edge cases, NS needs-spec). Each suite module
 exposes build(save_tool_id) -> list[TestsCreateRequestBody]; register a new suite
-by adding its module to SUITES below.
+in SUITES below, pairing its build with the ElevenLabs folder its tests live in.
 
-Idempotent: each test is looked up by name and updated if it exists, otherwise
-created — so re-running never produces duplicates. Which agent (and which
-save_call_result tool id) it targets is chosen by --env.
+Each suite's tests are placed in a same-named folder in the account, so the
+dashboard groups them and run_tests.py can select a whole suite with --folder.
+
+Idempotent: within its folder each test is looked up by name and updated if it
+exists, otherwise created — so re-running never produces duplicates. Which agent
+(and which save_call_result tool id) it targets is chosen by --env.
 
 After syncing, the tests are attached to the env's agent (via sync_agent) so
-they surface under the agent's Tests tab and run against it. Because a plain
-`agent sync-agent` sends no test ids and clears the attachments, run this AFTER
-sync-agent, not before.
+they surface under the agent's Tests tab and run against it. `agent sync-agent`
+preserves existing attachments, so sync order does not matter.
 
 Run with:  uv run python apps/elevenlabs-agent/tests/agent/sync_tests.py --env dev
 """
 
 import argparse
 from collections.abc import Callable
+from dataclasses import dataclass
 
+from elevenlabs.client import ElevenLabs
 from elevenlabs.conversational_ai.tests.types import TestsCreateRequestBody
 from elevenlabs_agent.client import build_client
 from elevenlabs_agent.config import Settings, load_settings
@@ -32,27 +36,43 @@ from suites import t1_core_happy_paths
 
 SuiteBuilder = Callable[[str], list[TestsCreateRequestBody]]
 
+
+@dataclass(frozen=True)
+class Suite:
+    folder: str
+    build: SuiteBuilder
+
+
 # One entry per suite module under suites/. Add a suite by creating its module
-# there and registering its build function here.
-SUITES: list[SuiteBuilder] = [
-    t1_core_happy_paths.build,
+# there and registering it here with the folder its tests should live in.
+SUITES: list[Suite] = [
+    Suite(folder="T1", build=t1_core_happy_paths.build),
 ]
 
 
-def build_tests(save_tool_id: str) -> list[TestsCreateRequestBody]:
-    tests: list[TestsCreateRequestBody] = []
-    for build in SUITES:
-        tests.extend(build(save_tool_id))
-    return tests
+def _ensure_folder(client: ElevenLabs, name: str) -> str:
+    """Return the id of the root folder named `name`, creating it if absent."""
+    cursor: str | None = None
+    while True:
+        page = client.conversational_ai.tests.list(types="folder", cursor=cursor)
+        for entry in page.tests:
+            if entry.name == name:
+                return str(entry.id)
+        if not page.has_more:
+            break
+        cursor = page.next_cursor
+    return str(client.conversational_ai.tests.folders.create(name=name).id)
 
 
 def _sync(settings: Settings) -> None:
     client = build_client(settings)
 
-    def find_existing_id(name: str) -> str | None:
+    def find_existing_id(name: str, folder_id: str) -> str | None:
         cursor: str | None = None
         while True:
-            page = client.conversational_ai.tests.list(search=name, cursor=cursor)
+            page = client.conversational_ai.tests.list(
+                search=name, parent_folder_id=folder_id, cursor=cursor
+            )
             for test in page.tests:
                 if test.name == name:
                     return str(test.id)
@@ -61,16 +81,19 @@ def _sync(settings: Settings) -> None:
             cursor = page.next_cursor
 
     test_ids: list[str] = []
-    for test in build_tests(settings.save_tool_id):
-        existing_id = find_existing_id(test.name)
-        if existing_id:
-            client.conversational_ai.tests.update(test_id=existing_id, request=test)
-            test_ids.append(existing_id)
-            print(f"Updated: {test.name} ({existing_id})")
-        else:
-            created = client.conversational_ai.tests.create(request=test)
-            test_ids.append(str(created.id))
-            print(f"Created: {test.name} ({created.id})")
+    for suite in SUITES:
+        folder_id = _ensure_folder(client, suite.folder)
+        for body in suite.build(settings.save_tool_id):
+            placed = body.model_copy(update={"parent_folder_id": folder_id})
+            existing_id = find_existing_id(placed.name, folder_id)
+            if existing_id:
+                client.conversational_ai.tests.update(test_id=existing_id, request=placed)
+                test_ids.append(existing_id)
+                print(f"Updated: {placed.name} ({existing_id}) [{suite.folder}]")
+            else:
+                created = client.conversational_ai.tests.create(request=placed)
+                test_ids.append(str(created.id))
+                print(f"Created: {placed.name} ({created.id}) [{suite.folder}]")
 
     sync_agent(client, settings, attached_test_ids=test_ids)
     print(f"Attached {len(test_ids)} test(s) to agent {settings.agent_id}")

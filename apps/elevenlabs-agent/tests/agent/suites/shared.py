@@ -28,3 +28,13 @@ DYNAMIC_VARS: dict[str, str | float | int | bool | list[Any] | None] = {
 
 def exact(value: str) -> UnitTestToolCallParameterEval_Exact:
     return UnitTestToolCallParameterEval_Exact(expected_value=value)
+
+
+def slug_name(slug: str, description: str) -> str:
+    """Compose a test name from a stable snake_case slug and a human description.
+
+    The slug (e.g. "t1_1__tool_call") is the identity handle sync_tests keys on and
+    the leading token filters like --name match; the description keeps the dashboard
+    label legible.
+    """
+    return f"{slug} · {description}"

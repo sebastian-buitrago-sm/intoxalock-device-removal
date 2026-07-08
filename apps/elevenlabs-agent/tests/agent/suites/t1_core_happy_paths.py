@@ -28,13 +28,14 @@ from .shared import (
     VEHICLE_MODEL,
     VEHICLE_YEAR,
     exact,
+    slug_name,
 )
 
 
 def build(save_tool_id: str) -> list[TestsCreateRequestBody]:
-    # scenarios.feature @T1-1 tool-call half.
+    # scenarios.feature @T1-1 tool-call half. Slug t1_1__tool_call is the identity handle.
     t1_1_tool = TestsCreateRequestBody_Tool(
-        name="T1-1 · shop accepts slot 1 and quotes (tool-call)",
+        name=slug_name("t1_1__tool_call", "shop accepts slot 1 and quotes"),
         dynamic_variables=DYNAMIC_VARS,
         chat_history=[
             Turn(
@@ -84,9 +85,9 @@ def build(save_tool_id: str) -> list[TestsCreateRequestBody]:
 
     # scenarios.feature @T1-1 (simulation half) — proves Daisy navigates
     # offer -> accept -> confirm -> quote -> save -> close on her own. Tools are
-    # mocked so save_call_result never hits the real webhook.
+    # mocked so save_call_result never hits the real webhook. Slug t1_1__simulation.
     t1_1_sim = TestsCreateRequestBody_Simulation(
-        name="T1-1 · shop accepts slot 1 and quotes (simulation)",
+        name=slug_name("t1_1__simulation", "shop accepts slot 1 and quotes"),
         dynamic_variables=DYNAMIC_VARS,
         simulation_scenario=(
             "You are an employee at a vehicle service center who just answered the phone. "
