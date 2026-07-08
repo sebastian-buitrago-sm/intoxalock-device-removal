@@ -1,0 +1,9 @@
+# TODO: replace every value below with the real production agent's identifiers
+# before running any `--env prod` command. These are placeholders.
+agent_id = ""
+agent_name = "Voice Agent Service Center - Intoxalock - Production"
+tags = ["intoxalock", "device-removal", "dev", "mindr"]
+phone_number_id = "phnum_5501kvxnv1y0ea0r36rk6bpkpcva"
+webhook_base_url = "https://minder.com"
+save_tool_id = "tool_2001kw2ek77df2hsb8qn7pn23ad9"
+concurrency_limit = 1

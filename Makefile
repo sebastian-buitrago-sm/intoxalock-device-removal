@@ -1,4 +1,4 @@
-.PHONY: install lint format typecheck imports test check run-agent synth deploy-lambda deploy-all
+.PHONY: install lint format typecheck imports test check create-agent sync-agent synth deploy-lambda deploy-all
 
 install:
 	uv sync
@@ -24,9 +24,13 @@ test:
 # Run every gate the way CI would.
 check: lint typecheck imports test
 
-# ElevenLabs hello-world CLI.
-run-agent:
-	uv run hello
+# ElevenLabs voice agent CLI. Pass ENV, e.g. `make sync-agent ENV=dev`.
+ENV ?= dev
+create-agent:
+	uv run agent create-agent --env $(ENV)
+
+sync-agent:
+	uv run agent sync-agent --env $(ENV)
 
 # Infrastructure (all stacks live in infra/; requires the AWS CDK CLI + AWS credentials).
 synth:

@@ -1,0 +1,7 @@
+agent_id = "agent_9201kvzmk05dfc0atefrhdz75exa"
+agent_name = "Voice Agent Service Center - Intoxalock - Development"
+tags = ["intoxalock", "device-removal", "dev", "mindr"]
+phone_number_id = "phnum_5501kvxnv1y0ea0r36rk6bpkpcva"
+webhook_base_url = "https://minder.com"
+save_tool_id = "tool_2001kw2ek77df2hsb8qn7pn23ad9"
+concurrency_limit = 1

@@ -1,12 +1,12 @@
 [project]
 name = "elevenlabs-agent"
 version = "0.1.0"
-description = "CLI to manage/sync an ElevenLabs agent."
+description = "CLI to manage/sync an ElevenLabs voice agent across environments."
 requires-python = ">=3.11"
-dependencies = ["core", "elevenlabs"]
+dependencies = ["core", "elevenlabs", "pydantic", "python-dotenv"]
 
 [project.scripts]
-hello = "elevenlabs_agent.cli:main"
+agent = "elevenlabs_agent.cli:main"
 
 [build-system]
 requires = ["hatchling"]

@@ -21,6 +21,12 @@ target-version = "py311"
 select = ["E", "W", "F", "I", "B", "UP", "ANN"]
 ignore = ["ANN101", "ANN102"]
 
+[tool.ruff.lint.per-file-ignores]
+# The agent definition embeds natural-language prompt/tool/eval copy where line
+# length is not meaningful (the prompt is a triple-quoted block whose newlines
+# are semantic and must not be reflowed).
+"apps/elevenlabs-agent/src/elevenlabs_agent/definition/*" = ["E501"]
+
 [tool.mypy]
 python_version = "3.11"
 strict = true
