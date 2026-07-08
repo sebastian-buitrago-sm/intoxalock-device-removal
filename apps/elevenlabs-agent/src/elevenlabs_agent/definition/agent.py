@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -5,6 +6,8 @@ from elevenlabs.types import (
     AgentCallLimits,
     AgentConfig,
     AgentPlatformSettingsRequestModel,
+    AgentTestingSettings,
+    AttachedTestModel,
     ConversationalConfig,
     DynamicVariablesConfigOutput,
     PromptAgentApiModelOutput,
@@ -39,7 +42,9 @@ class AgentDefinition:
     platform_settings: AgentPlatformSettingsRequestModel
 
 
-def build_agent_definition(settings: Settings) -> AgentDefinition:
+def build_agent_definition(
+    settings: Settings, attached_test_ids: Sequence[str] | None = None
+) -> AgentDefinition:
     conversation_config = ConversationalConfig(
         tts=TtsConversationalConfigOutput(voice_id=VOICE_ID, model_id=TTS_MODEL_ID),
         agent=AgentConfig(
@@ -63,6 +68,11 @@ def build_agent_definition(settings: Settings) -> AgentDefinition:
         call_limits=AgentCallLimits(
             agent_concurrency_limit=settings.concurrency_limit,
             bursting_enabled=False,
+        ),
+        testing=AgentTestingSettings(
+            attached_tests=[
+                AttachedTestModel(test_id=test_id) for test_id in attached_test_ids or []
+            ]
         ),
     )
     return AgentDefinition(

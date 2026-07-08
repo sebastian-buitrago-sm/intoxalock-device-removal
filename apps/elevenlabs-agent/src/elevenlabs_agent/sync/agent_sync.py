@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import cast
 
 from elevenlabs.client import ElevenLabs
@@ -25,13 +26,22 @@ def create_agent(client: ElevenLabs, settings: Settings) -> CreateAgentResponseM
     )
 
 
-def sync_agent(client: ElevenLabs, settings: Settings) -> GetAgentResponseModel:
+def sync_agent(
+    client: ElevenLabs,
+    settings: Settings,
+    attached_test_ids: Sequence[str] | None = None,
+) -> GetAgentResponseModel:
     """Push the agent definition to the environment's target agent, in place.
 
     Idempotent: updates the existing agent identified by settings.agent_id
     rather than creating a new one, so re-running never produces duplicates.
+
+    When attached_test_ids is given, those tests are attached to the agent so
+    they surface under the agent's Tests tab and run against it. They are
+    resent as the full platform_settings, so evaluation and call limits are
+    preserved rather than wiped.
     """
-    definition = build_agent_definition(settings)
+    definition = build_agent_definition(settings, attached_test_ids)
     # elevenlabs.* is untyped per mypy config, so the SDK call resolves to Any
     # even though it returns GetAgentResponseModel at runtime.
     return cast(
