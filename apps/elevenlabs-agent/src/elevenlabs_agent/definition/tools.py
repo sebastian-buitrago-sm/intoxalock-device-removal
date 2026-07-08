@@ -37,7 +37,7 @@ def _save_call_result_tool(webhook_base_url: str) -> PromptAgentApiModelOutputTo
             "Saves the outcome of this scheduling call to the Mindr system. "
             "Call this tool before closing every call, without exception — whether a slot was confirmed, "
             "the shop proposed alternatives, the shop was unavailable, or a technical issue occurred. "
-            "Pass all three fields every time: use an empty string for any field that does not apply."
+            "Pass all five fields every time: use an empty string for any field that does not apply."
         ),
         api_schema=WebhookToolApiSchemaConfigOutput(
             url=f"{webhook_base_url}/save-call-result/{{{{user_id}}}}",
@@ -50,7 +50,13 @@ def _save_call_result_tool(webhook_base_url: str) -> PromptAgentApiModelOutputTo
             },
             request_body_schema=ObjectJsonSchemaPropertyOutput(
                 type="object",
-                required=["confirmed_slot", "shop_suggested_slot_1", "shop_suggested_slot_2"],
+                required=[
+                    "confirmed_slot",
+                    "shop_suggested_slot_1",
+                    "shop_suggested_slot_2",
+                    "quote_amount",
+                    "no_data_reason",
+                ],
                 properties={
                     "confirmed_slot": LiteralJsonSchemaProperty(
                         type="string",
@@ -76,6 +82,23 @@ def _save_call_result_tool(webhook_base_url: str) -> PromptAgentApiModelOutputTo
                             "A second backup slot proposed by the shop. "
                             "Include the full date and time as stated by the shop. "
                             "Pass an empty string if no second alternative was offered."
+                        ),
+                    ),
+                    "quote_amount": LiteralJsonSchemaProperty(
+                        type="string",
+                        description=(
+                            "The installation quote the shop gave for the customer's vehicle, in whole "
+                            "USD, digits only (e.g. '250'). No currency symbol or words. "
+                            "Pass an empty string if the shop did not provide a quote."
+                        ),
+                    ),
+                    "no_data_reason": LiteralJsonSchemaProperty(
+                        type="string",
+                        description=(
+                            "Short reason no scheduling data could be gathered on this call "
+                            "(e.g. 'shop unavailable at the moment', 'person in charge not available', "
+                            "'shop asked to call back'). "
+                            "Pass an empty string if the call proceeded normally, regardless of outcome."
                         ),
                     ),
                 },

@@ -4,6 +4,10 @@
 
 Comment non-obvious *why* only — complex logic or non-trivial decisions. Never narrate what the code does.
 
+## Function signatures
+
+Past 2 arguments, favor connascence of name over connascence of position: make the extra parameters keyword-only (`*`) so call sites pass them by name and can't be broken by silently reordering same-typed arguments (e.g. swapping `vehicle_make`/`vehicle_model`).
+
 ## REST (over API Gateway)
 
 Handlers emit Lambda proxy responses (`{statusCode, headers, body}`).

@@ -27,6 +27,9 @@ DYNAMIC_VARIABLE_PLACEHOLDERS: dict[str, str | float | int | bool | list[Any] | 
     "user_id": "unique identifier for the customer record used to route the call result to the correct account",
     "user_scheduled_slot_1": "preferred date and time for the customer's Ignition Interlock Device removal appointment",
     "user_scheduled_slot_2": "alternative date and time for the customer's Ignition Interlock Device removal appointment",
+    "user_vehicle_make": "make of the customer's vehicle, e.g. Honda",
+    "user_vehicle_model": "model of the customer's vehicle, e.g. Civic",
+    "user_vehicle_year": "model year of the customer's vehicle, e.g. 2019",
 }
 
 

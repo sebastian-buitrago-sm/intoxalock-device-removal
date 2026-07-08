@@ -9,6 +9,7 @@ from elevenlabs_agent.config import Settings
 def place_call(
     client: ElevenLabs,
     settings: Settings,
+    *,
     to_number: str,
     dynamic_variables: dict[str, str],
 ) -> TwilioOutboundCallResponse:

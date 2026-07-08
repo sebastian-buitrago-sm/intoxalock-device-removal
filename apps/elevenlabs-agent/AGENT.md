@@ -45,7 +45,8 @@ target with `--env`.
 uv run agent create-agent --env dev        # from-scratch: create a new agent, prints its agent_id
 uv run agent sync-agent --env dev          # push the definition to the dev agent
 uv run agent call --env dev --to +1555... --user-id 123 \
-  --slot1 "Mon June 30 5am" --slot2 "Tue July 1 10pm"
+  --slot1 "Mon June 30 5am" --slot2 "Tue July 1 10pm" \
+  --make Honda --model Civic --year 2019
 ```
 
 `create-agent` is a one-time step per environment: it has no `agent_id` to
