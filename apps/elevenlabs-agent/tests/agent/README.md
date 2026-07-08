@@ -23,9 +23,9 @@ place ElevenLabs stores them. Because they are written specifically for Daisy
 (they reference her `save_call_result` tool), step 2 also **attaches** them to
 the env's agent so they appear under the agent's Tests tab and run against it.
 
-> Order matters: a plain `agent sync-agent` pushes the definition with no test
-> ids, which clears the attachments. Always run `sync_tests.py` *after*
-> `sync-agent`, as above.
+`sync-agent` reads the agent's currently attached test ids before pushing the
+definition, so it preserves attachments made by `sync_tests.py` regardless of
+run order.
 
 `sync_tests.py` targets the `save_call_result` tool via `save_tool_id` from
 `config/<env>.toml`; keep that in sync when the webhook tool is recreated.

@@ -26,6 +26,14 @@ def create_agent(client: ElevenLabs, settings: Settings) -> CreateAgentResponseM
     )
 
 
+def get_attached_test_ids(client: ElevenLabs, agent_id: str) -> list[str]:
+    """Read the test ids currently attached to the agent (its Tests tab)."""
+    agent = cast(GetAgentResponseModel, client.conversational_ai.agents.get(agent_id=agent_id))
+    testing = agent.platform_settings.testing if agent.platform_settings else None
+    attached_tests = testing.attached_tests if testing else None
+    return [test.test_id for test in attached_tests] if attached_tests else []
+
+
 def sync_agent(
     client: ElevenLabs,
     settings: Settings,

@@ -3,7 +3,7 @@ import argparse
 from elevenlabs_agent.calling.outbound import place_call
 from elevenlabs_agent.client import build_client
 from elevenlabs_agent.config import load_settings
-from elevenlabs_agent.sync.agent_sync import create_agent, sync_agent
+from elevenlabs_agent.sync.agent_sync import create_agent, get_attached_test_ids, sync_agent
 
 
 def _create_agent(env: str) -> None:
@@ -17,7 +17,8 @@ def _create_agent(env: str) -> None:
 def _sync_agent(env: str) -> None:
     settings = load_settings(env)
     client = build_client(settings)
-    agent = sync_agent(client, settings)
+    attached_test_ids = get_attached_test_ids(client, settings.agent_id)
+    agent = sync_agent(client, settings, attached_test_ids)
     print(f"[{env}] agent synced: {agent.agent_id} (version {agent.version_id})")
 
 
