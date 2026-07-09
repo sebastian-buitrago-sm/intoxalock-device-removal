@@ -9,7 +9,8 @@ scenarios.feature (T1..T4 tiers, E edge cases, NS needs-spec). Each suite module
 exposes build(save_tool_id) -> list[TestsCreateRequestBody]; register a new suite
 in SUITES below, pairing its build with the ElevenLabs folder its tests live in.
 
-Each suite's tests are placed in a same-named folder in the account, so the
+Each suite's tests are placed in a folder named for the suite module
+(<identifier>_<description>, e.g. T1_core_happy_paths) in the account, so the
 dashboard groups them and run_tests.py can select a whole suite with --folder.
 
 Idempotent: within its folder each test is looked up by name and updated if it
@@ -54,7 +55,7 @@ class Suite:
 # One entry per suite module under suites/. Add a suite by creating its module
 # there and registering it here with the folder its tests should live in.
 SUITES: list[Suite] = [
-    Suite(folder="T1", build=t1_core_happy_paths.build),
+    Suite(folder="T1_core_happy_paths", build=t1_core_happy_paths.build),
 ]
 
 
@@ -92,7 +93,31 @@ def _ensure_save_tool_mock(client: ElevenLabs, save_tool_id: str) -> None:
     print(f"Set response mock on save_call_result tool ({save_tool_id})")
 
 
-def _sync(settings: Settings) -> None:
+def _prune_orphan_folders(client: ElevenLabs, keep: set[str]) -> None:
+    """Delete root test folders (and every test inside them) whose name is not in `keep`.
+
+    The rename-migration cleanup: when a suite's folder is renamed, its old folder and
+    now-stale tests are left orphaned in the account. This removes any root folder not
+    produced by the current SUITES. force=True deletes a non-empty folder and its
+    contents in one call. Opt-in (--prune) so a partially-registered SUITES can never
+    silently delete folders.
+    """
+    cursor: str | None = None
+    stale: list[tuple[str, str]] = []
+    while True:
+        page = client.conversational_ai.tests.list(types="folder", cursor=cursor)
+        for entry in page.tests:
+            if entry.name not in keep:
+                stale.append((str(entry.id), entry.name))
+        if not page.has_more:
+            break
+        cursor = page.next_cursor
+    for folder_id, name in stale:
+        client.conversational_ai.tests.folders.delete(folder_id=folder_id, force=True)
+        print(f"Pruned orphan folder: {name} ({folder_id})")
+
+
+def _sync(settings: Settings, *, prune: bool = False) -> None:
     client = build_client(settings)
     _ensure_save_tool_mock(client, settings.save_tool_id)
 
@@ -127,14 +152,23 @@ def _sync(settings: Settings) -> None:
     sync_agent(client, settings, attached_test_ids=test_ids)
     print(f"Attached {len(test_ids)} test(s) to agent {settings.agent_id}")
 
+    if prune:
+        _prune_orphan_folders(client, keep={suite.folder for suite in SUITES})
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Create/update ElevenLabs agent tests for an environment."
     )
     parser.add_argument("--env", required=True, help="Environment to target (e.g. dev, prod).")
+    parser.add_argument(
+        "--prune",
+        action="store_true",
+        help="After syncing, delete account test folders (and their tests) not in SUITES "
+        "— e.g. a suite's old folder left behind after a rename.",
+    )
     args = parser.parse_args()
-    _sync(load_settings(args.env))
+    _sync(load_settings(args.env), prune=args.prune)
 
 
 if __name__ == "__main__":

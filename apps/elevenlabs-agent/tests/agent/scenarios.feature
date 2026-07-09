@@ -37,12 +37,11 @@
 #   - asserting the agent NAVIGATES a multi-turn flow on its own    -> @simulation
 #     (prefer @partial-sim when the interesting part is deep in the flow)
 #
-# Pairing policy: use TWO types (tool-call + simulation) for EVERY core happy path —
-# any flow that ends in a confirmed appointment (slot confirmed + quote) — because
-# those are the core functionality and warrant guaranteeing BOTH the exact saved
-# payload AND autonomous navigation. Non-happy paths (no-data/sad paths, guardrails,
-# edge cases) use the single type that matches their assertion, since a second type
-# there is mostly duplicated maintenance for little added coverage (see each `# Rec:`).
+# Type policy: each scenario uses the ONE type that matches its assertion (the decision
+# rule above; see each `# Rec:`). Core happy paths — flows that end in a confirmed
+# appointment (slot confirmed + quote) — are covered by @simulation, since autonomous
+# navigation is the risk worth guaranteeing there. No-data/sad paths, guardrails, and
+# edge cases use whichever single type matches their assertion.
 # ---------------------------------------------------------------------------
 #
 # Scenario IDs: each scenario's FIRST tag is a stable ID (e.g. @T1-1, @E-3, @NS-2)
@@ -65,8 +64,8 @@ Feature: Daisy confirms an installation appointment with a service shop
 
   # ===================================================================
   # SUITE T1 — core revenue flow. Must be green before any
-  # sync-agent --env prod. Every happy path (a confirmed appointment)
-  # is a tool-call + simulation PAIR — they are the core functionality.
+  # sync-agent --env prod. Every happy path (a confirmed appointment) is
+  # covered by a @simulation proving Daisy navigates it on her own.
   # ===================================================================
 
   # NOTE: Step 4 (quote) ALWAYS runs after Step 3 (confirm) per prompt.py, so a
@@ -74,33 +73,29 @@ Feature: Daisy confirms an installation appointment with a service shop
   # populated. A slot-only save (quote empty) is only realistic when the shop
   # declines to quote — see T2-3.
 
-  # Rec: tool-call + simulation (PAIR) — the canonical end-to-end. Only place both
-  # guarantees (exact payload AND autonomous navigation) are worth double maintenance.
-  # Tool-call half deferred for now — simulation implemented first.
-  @T1-1 @tier1 @tool-call @simulation @slot_confirmed @result_saved
+  # Rec: simulation — the canonical end-to-end; proves Daisy navigates
+  # offer -> accept -> confirm -> quote -> save -> close on her own.
+  @T1-1 @tier1 @simulation @slot_confirmed @result_saved
   Scenario: Shop accepts the first offered slot and gives a quote (full happy path)
     When the shop accepts slot 1 immediately
     And Daisy asks for the installation quote and the shop gives an amount
     Then Daisy confirms slot 1, then repeats the quote back to confirm it
     And save_call_result carries confirmed_slot = slot 1 and quote_amount populated, with shop_suggested_slot_1/2 and no_data_reason empty
 
-  # Rec: tool-call + simulation (PAIR) — core happy path (confirmed appointment).
-  # tool-call locks confirmed_slot = slot 2; simulation proves Daisy navigates the
-  # reject-then-offer-next branch on her own. Tool-call half deferred for now.
-  @T1-2 @tier1 @tool-call @simulation @slot_confirmed @result_saved
+  # Rec: simulation — proves Daisy navigates the reject-then-offer-next
+  # branch on her own before quoting and closing.
+  @T1-2 @tier1 @simulation @slot_confirmed @result_saved
   Scenario: Shop rejects the first slot, accepts the second, and gives a quote
     When the shop rejects slot 1 and accepts slot 2
     And Daisy asks for the quote and the shop gives an amount
     Then Daisy confirms slot 2, then the quote
     And save_call_result carries confirmed_slot = slot 2 and quote_amount populated
 
-  # Rec: tool-call + simulation (PAIR) — highest-risk Tier 1 branch: Daisy must switch
-  # to asking shop availability, capture TWO slots, and populate two payload fields.
-  # Both the navigation and the multi-field payload are non-trivial, so both earn a test.
+  # Rec: simulation — highest-risk Tier 1 branch: Daisy must switch to asking shop
+  # availability, capture TWO slots, and read both back for accuracy on her own.
   # NOTE: shop-proposed times are NOT a confirmed appointment (the customer hasn't
   # accepted), so confirmed_slot stays EMPTY here — the times go to shop_suggested_slot_1/2.
-  # Tool-call half deferred for now.
-  @T1-3 @tier1 @tool-call @simulation @slot_confirmed @result_saved
+  @T1-3 @tier1 @simulation @slot_confirmed @result_saved
   Scenario: Shop rejects both slots, offers two alternatives, and gives a quote
     When the shop rejects slot 1 and slot 2
     And the shop offers two alternative slots
@@ -108,20 +103,20 @@ Feature: Daisy confirms an installation appointment with a service shop
     Then Daisy reads both alternatives back for accuracy (not as a confirmation), then asks the quote
     And save_call_result carries confirmed_slot EMPTY, shop_suggested_slot_1/2 populated (ISO format), and quote_amount populated
 
-  # Rec: tool-call — the assertion is the payload (empty slots/quote + no_data_reason)
-  # and that the quote step is skipped; the shop's line is easy to script deterministically.
-  @T1-4 @tier1 @tool-call @result_saved
+  # Rec: simulation — proves Daisy recognizes the contact is unavailable, skips the quote
+  # step, and saves with no_data_reason set and all four slot/quote fields empty; the
+  # success condition checks that outcome.
+  @T1-4 @tier1 @simulation @result_saved
   Scenario: Scheduling contact is not available (wrong person / person in charge absent)
     When the shop says the scheduling contact is not available
     Then Daisy does NOT attempt the quote step
     And save_call_result carries all four slot/quote fields empty and no_data_reason populated
 
-  # Rec: tool-call + simulation (PAIR) — same alternative-offering branch as T1-3, but the
-  # shop volunteers only ONE alternative when asked for a second. Payload contract differs
-  # from T1-3 only in that shop_suggested_slot_2 stays empty (compare T2-1, which is the
-  # same one-alternative branch WITHOUT the quote step — this is its full-happy-path twin).
-  # Tool-call half deferred for now.
-  @T1-5 @tier1 @tool-call @simulation @slot_confirmed @result_saved
+  # Rec: simulation — same alternative-offering branch as T1-3, but the shop volunteers
+  # only ONE alternative when asked for a second, so shop_suggested_slot_2 stays empty
+  # (compare T2-1, the same one-alternative branch WITHOUT the quote step — this is its
+  # full-happy-path twin).
+  @T1-5 @tier1 @simulation @slot_confirmed @result_saved
   Scenario: Shop rejects both slots, offers only one alternative, and gives a quote
     When the shop rejects slot 1 and slot 2
     And the shop offers only one alternative slot and has no second time available
@@ -183,6 +178,17 @@ Feature: Daisy confirms an installation appointment with a service shop
   Scenario: Shop gives non-committal answers repeatedly
     When the shop responds with "maybe" or "let me check" several times instead of a clear yes/no
     Then Daisy keeps asking one clarifying question at a time and reaches a resolution within simulation_max_turns
+
+  # Rec: partial-sim — same correction-after-readback behavior as T2-2, but for the
+  # two-alternative-slots branch (T1-3/T1-5): the shop offers two alternatives, Daisy
+  # reads both back for accuracy, then corrects ONE of them. Seeding to the read-back
+  # avoids re-simulating the reject-then-offer turns.
+  @T2-7 @tier2 @partial-sim
+  Scenario: Shop corrects one of two alternative slots after Daisy reads them back
+    Given the conversation has reached the point where the shop offered two alternative slots and Daisy has read both back for accuracy
+    When the shop corrects a detail (e.g. time) on one of the two alternatives
+    Then Daisy re-reads both alternatives back with the correction applied before proceeding
+    And save_call_result carries confirmed_slot EMPTY and shop_suggested_slot_1/2 reflecting the corrected values (ISO format)
 
   # ===================================================================
   # SUITE T3 — guardrails & adversarial. Most are SINGLE-REPLY checks, so
@@ -344,6 +350,16 @@ Feature: Daisy confirms an installation appointment with a service shop
   Scenario: Shop asks Daisy to hold for a moment
     When the shop says "can you hold on a second?"
     Then Daisy acknowledges politely and waits rather than continuing or hanging up
+
+  # Rec: partial-sim — combines the relative-date resolution (NS-5) and missing-time
+  # pin-down (E-3) risks, but for the TWO-alternatives branch (T1-3/T1-5); seeding past
+  # the reject turns avoids re-simulating them.
+  @E-10 @tier2 @partial-sim
+  Scenario: Shop offers two alternative slots as relative dates with no time
+    Given the shop has rejected both original slots
+    When the shop offers two alternative slots using only relative days ("tomorrow", "next Saturday") without a specific time
+    Then Daisy resolves each relative day against {{today_shop_local}} and pins down a specific time for both before reading them back
+    And save_call_result carries confirmed_slot EMPTY and shop_suggested_slot_1/2 populated as resolved ISO "YYYY-MM-DD HH:MM" values
 
   # NOTE (voice-only — NOT covered by the text tests above): true interruptions /
   # barge-in, hold silence and turn-timeout handling, DTMF / IVR menu navigation, and

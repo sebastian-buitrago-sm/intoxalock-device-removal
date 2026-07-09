@@ -22,10 +22,10 @@ from elevenlabs_agent.definition.evaluation import build_evaluation
 from elevenlabs_agent.definition.prompt import FIRST_MESSAGE, PROMPT
 from elevenlabs_agent.definition.tools import build_tools
 
-VOICE_ID = "EXAVITQu4vr4xnSDxMaL"
+VOICE_ID = "DXFkLCBUTmvXpp2QwZjA"
 TTS_MODEL_ID = "eleven_flash_v2"
-LLM = "gpt-5-mini"
-BACKUP_LLM_ORDER = ["gpt-5-mini", "claude-sonnet-4"]
+LLM = "claude-haiku-4-5"
+BACKUP_LLM_ORDER = ["gpt-5-mini"]
 
 DYNAMIC_VARIABLE_PLACEHOLDERS: dict[str, str | float | int | bool | list[Any] | None] = {
     "user_id": "unique identifier for the customer record used to route the call result to the correct account",

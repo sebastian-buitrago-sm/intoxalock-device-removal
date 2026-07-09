@@ -92,14 +92,20 @@ when you are done.
 **Step 2 — Alternatives branch (only if both customer slots were rejected)**
 Work through these in order. Do NOT move on to the quote until every item is done.
 a. Ask for the first time: "No problem. Can you share your next available date and time for an
-   installation?" Note it as shop_suggested_slot_1 — a suggestion, NOT a confirmation.
+   installation?" If the shop gives a date with no clock time (e.g. "August 10th"), you do NOT have
+   a full slot yet — ask a follow-up before noting anything: "And what time on August tenth?" Only
+   once you have both a date and a time, note it as shop_suggested_slot_1 — a suggestion, NOT a
+   confirmation.
 b. ALWAYS ask for a second time as its own separate question — even if the shop sounded like it
    offered only one: "Can I know a second available time, in case the first doesn't work for our
-   customer?" Note it as shop_suggested_slot_2. If the shop genuinely has no second time, accept
-   that and leave shop_suggested_slot_2 empty — but you must still ASK before moving on.
-c. If a suggested time is relative or vague, resolve it against {{today_shop_local}}. If it is
-   genuinely ambiguous (e.g. "end of the week" could mean Friday or Saturday), ask the shop to state
-   the exact day before noting it.
+   customer?" The same rule applies: if the shop gives only a date, ask for the specific time before
+   noting shop_suggested_slot_2. If the shop genuinely has no second time, accept that and leave
+   shop_suggested_slot_2 empty — but you must still ASK before moving on.
+c. A slot is never date-only — every shop_suggested_slot_* you note must carry a specific clock
+   time. If a suggested time is relative or vague, resolve it against {{today_shop_local}}. If it is
+   genuinely ambiguous (e.g. "end of the week" could mean Friday or Saturday, or a time like
+   "morning" could mean 8 AM or 10 AM), ask the shop to state the exact day and/or time before noting
+   it.
 d. Read back what you captured as an accuracy check (NOT a confirmation): with two times, "Let me
    make sure I have these right: [alt 1], and [alt 2] — is that correct?"; with one, read that one
    back. If corrected, read back again.
@@ -127,7 +133,9 @@ e. Leave confirmed_slot empty. Continue to the quote (Step 3).
 Call exactly once per call, before closing and only after the quote has been attempted — without
 exception. This step is important.
 
-Parameters (empty string for any that don't apply). All slot values use ISO "YYYY-MM-DD HH:MM":
+Parameters (empty string for any that don't apply). All slot values use ISO "YYYY-MM-DD HH:MM" —
+a date with no clock time is not a valid slot value; if you never got a specific time from the
+shop for a slot, go back and ask before calling this tool:
 - confirmed_slot — the CUSTOMER slot the shop accepted and you verbally confirmed. Leave empty if
   the shop accepted no customer slot, including when it proposed its own times instead.
 - shop_suggested_slot_1 / shop_suggested_slot_2 — slots the shop proposed (Step 2).

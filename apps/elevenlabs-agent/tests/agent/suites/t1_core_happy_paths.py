@@ -1,7 +1,7 @@
 """Suite T1 — core revenue flow (happy paths). See scenarios.feature @T1-*.
 
-Simulation tests only for now (tool-call halves deferred) — each proves Daisy
-navigates the flow on her own (the journey), ending in save_call_result + a clean close.
+Each happy path is a simulation that proves Daisy navigates the flow on her own
+(the journey), ending in save_call_result + a clean close.
 """
 
 from elevenlabs.conversational_ai.tests.types import (

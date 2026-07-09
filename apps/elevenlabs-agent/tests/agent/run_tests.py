@@ -6,7 +6,7 @@ the verdict and the evaluator's rationale. The SDK mechanics live in runner.py;
 this module is just the CLI and the high-level flow.
 
 By default it runs every test. Narrow with any combination of (AND-ed):
-  --folder T1        suite folder (server-side; run a whole suite)
+  --folder T1_core_happy_paths   suite folder (server-side; run a whole suite)
   --type tool        test type: tool | tool-call | simulation | llm (native)
   --id test_...      exact test id (repeatable)
   --name <substr>    case-insensitive substring of the test name
@@ -15,13 +15,13 @@ By default it runs every test. Narrow with any combination of (AND-ed):
     # all tests
     uv run python apps/elevenlabs-agent/tests/agent/run_tests.py --env dev
     # a whole suite
-    uv run python .../run_tests.py --env dev --folder T1
+    uv run python .../run_tests.py --env dev --folder T1_core_happy_paths
     # every tool-call test
     uv run python .../run_tests.py --env dev --type tool
     # one test by id
     uv run python .../run_tests.py --env dev --id test_9801kx1vrgdse3q8ysw9m3zf94hy
     # a suite, each test 3 times, with pass-rate buckets
-    uv run python .../run_tests.py --env dev --folder T1 --repeat 3
+    uv run python .../run_tests.py --env dev --folder T1_core_happy_paths --repeat 3
 
 With --repeat the platform runs each test repeat_count times and groups the
 outcomes into buckets (server-side), so the report shows a per-test pass rate
