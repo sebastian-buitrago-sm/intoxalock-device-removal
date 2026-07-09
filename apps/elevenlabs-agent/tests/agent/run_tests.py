@@ -9,6 +9,7 @@ By default it runs every test. Narrow with any combination of (AND-ed):
   --type tool        test type: tool | tool-call | simulation | llm (native)
   --id test_...      exact test id (repeatable)
   --name <substr>    case-insensitive substring of the test name
+  --repeat N         run each test N times (2-20; default 1 = single run) for a pass rate
 
     # all tests
     uv run python apps/elevenlabs-agent/tests/agent/run_tests.py --env dev
@@ -18,6 +19,12 @@ By default it runs every test. Narrow with any combination of (AND-ed):
     uv run python .../run_tests.py --env dev --type tool
     # one test by id
     uv run python .../run_tests.py --env dev --id test_9801kx1vrgdse3q8ysw9m3zf94hy
+    # a suite, each test 3 times, with pass-rate buckets
+    uv run python .../run_tests.py --env dev --folder T1 --repeat 3
+
+With --repeat the platform runs each test repeat_count times and groups the
+outcomes into buckets (server-side), so the report shows a per-test pass rate
+and the distinct failure reasons — the same view as the dashboard.
 
 The selected tests are printed before running, so selection can be verified even
 if execution errors (e.g. on account quota).
@@ -28,15 +35,37 @@ often as you like.
 
 import argparse
 import time
+from dataclasses import dataclass
+from typing import cast
 
 from elevenlabs.client import ElevenLabs
-from elevenlabs.types import SingleTestRunRequestModel
+from elevenlabs.types import GetTestSuiteInvocationResponseModel, SingleTestRunRequestModel
 from elevenlabs_agent.client import build_client
 from elevenlabs_agent.config import Settings, load_settings
 
 POLL_SECONDS = 3
 
+# ElevenLabs caps repeat_count at 20; 1 means a single, unbucketed run.
+MAX_REPEAT = 20
+
 TYPE_ALIASES = {"tool": "tool", "tool-call": "tool", "simulation": "simulation", "llm": "llm"}
+
+
+@dataclass(frozen=True)
+class TestFilters:
+    """Which tests to run — all criteria AND-ed. folder/test_type narrow the
+    server-side listing; ids/name filter that list client-side."""
+
+    ids: list[str] | None
+    name: str | None
+    folder: str | None
+    test_type: str | None
+
+
+def _is_repeating(repeat: int) -> bool:
+    """A repeat count above one makes the platform run each test repeatedly and
+    bucket the outcomes server-side; a count of one is a single, unbucketed run."""
+    return repeat > 1
 
 
 def _resolve_folder_id(client: ElevenLabs, name: str) -> str | None:
@@ -51,21 +80,39 @@ def _resolve_folder_id(client: ElevenLabs, name: str) -> str | None:
         cursor = page.next_cursor
 
 
-def _run(
-    settings: Settings,
-    ids: list[str] | None,
-    name: str | None,
-    folder: str | None,
-    test_type: str | None,
-) -> None:
-    client = build_client(settings)
+def _report_flat(inv: GetTestSuiteInvocationResponseModel) -> None:
+    runs = inv.test_runs
+    passed = sum(1 for run in runs if run.status == "passed")
+    print(f"\nResults: {passed}/{len(runs)} passed\n")
+    for run in runs:
+        print(f"[{str(run.status).upper()}] {run.test_name}")
+        if run.condition_result is not None and run.condition_result.rationale:
+            print(f"    {run.condition_result.rationale}")
 
+
+def _report_buckets(inv: GetTestSuiteInvocationResponseModel) -> None:
+    total = len(inv.test_runs)
+    passed = sum(1 for run in inv.test_runs if run.status == "passed")
+    print(f"\nResults: {passed}/{total} run(s) passed\n")
+    for group in inv.result_groups or []:
+        n = sum(len(bucket.test_run_ids) for bucket in group.buckets)
+        won = sum(len(b.test_run_ids) for b in group.buckets if b.status == "passed")
+        verdict = "PASS" if won == n else "FLAKY" if won else "FAIL"
+        print(f"[{won}/{n} {verdict}] {group.test_name}")
+        for bucket in group.buckets:
+            count = len(bucket.test_run_ids)
+            print(f"    {str(bucket.status).upper()} x{count}: {bucket.title}")
+            if bucket.status != "passed" and bucket.reason:
+                print(f"        {bucket.reason}")
+
+
+def _discover_tests(
+    client: ElevenLabs, *, folder_id: str | None, test_type: str | None
+) -> list[tuple[str, str, str]]:
+    """List every test in the account as (id, name, type), paginating. Optionally
+    scoped server-side to a folder and/or a single test type."""
     list_kwargs: dict[str, object] = {}
-    if folder:
-        folder_id = _resolve_folder_id(client, folder)
-        if folder_id is None:
-            print(f"No folder named {folder!r}.")
-            return
+    if folder_id:
         list_kwargs["parent_folder_id"] = folder_id
     if test_type:
         list_kwargs["types"] = TYPE_ALIASES[test_type]
@@ -76,12 +123,18 @@ def _run(
         page = client.conversational_ai.tests.list(cursor=cursor, **list_kwargs)
         tests.extend((test.id, test.name, str(test.type)) for test in page.tests)
         if not page.has_more:
-            break
+            return tests
         cursor = page.next_cursor
 
+
+def _select_tests(
+    tests: list[tuple[str, str, str]], *, ids: list[str] | None, name: str | None
+) -> list[tuple[str, str]]:
+    """Narrow discovered tests to the (id, name) pairs matching the id set and/or
+    the name substring. Folders are always excluded."""
     id_set = set(ids) if ids else None
     needle = name.lower() if name else None
-    selected = [
+    return [
         (test_id, test_name)
         for test_id, test_name, entry_type in tests
         if entry_type != "folder"
@@ -89,31 +142,80 @@ def _run(
         and (needle is None or needle in test_name.lower())
     ]
 
+
+def _announce(selected: list[tuple[str, str]], *, repeat: int, agent_id: str) -> None:
+    suffix = f", each x{repeat}" if _is_repeating(repeat) else ""
+    print(f"Running {len(selected)} test(s){suffix} against {agent_id}:")
+    for _, test_name in selected:
+        print(f"  - {test_name}")
+
+
+def _start_invocation(
+    client: ElevenLabs, *, agent_id: str, test_ids: list[str], repeat: int
+) -> str:
+    """Kick off the (asynchronous) run and return its invocation id. repeat_count
+    is sent only when repeating, so a single run keeps the default response shape."""
+    run_kwargs: dict[str, object] = {"repeat_count": repeat} if _is_repeating(repeat) else {}
+    invocation = client.conversational_ai.agents.run_tests(
+        agent_id=agent_id,
+        tests=[SingleTestRunRequestModel(test_id=test_id) for test_id in test_ids],
+        **run_kwargs,
+    )
+    return str(invocation.id)
+
+
+def _await_invocation(
+    client: ElevenLabs, *, invocation_id: str, repeat: int
+) -> GetTestSuiteInvocationResponseModel:
+    """Poll until every run reaches a terminal status and, when repeating, the
+    server-side bucketing has settled; then return the final invocation."""
+    while True:
+        # elevenlabs.* is untyped per mypy config, so the SDK call resolves to Any.
+        inv = cast(
+            GetTestSuiteInvocationResponseModel,
+            client.conversational_ai.tests.invocations.get(test_invocation_id=invocation_id),
+        )
+        runs_done = bool(inv.test_runs) and all(
+            run.status in ("passed", "failed") for run in inv.test_runs
+        )
+        buckets_done = not _is_repeating(repeat) or inv.bucketing_status in ("completed", "failed")
+        if runs_done and buckets_done:
+            return inv
+        time.sleep(POLL_SECONDS)
+
+
+def _report(inv: GetTestSuiteInvocationResponseModel, *, repeat: int) -> None:
+    if _is_repeating(repeat) and inv.bucketing_status == "completed":
+        _report_buckets(inv)
+    else:
+        _report_flat(inv)
+
+
+def _run(settings: Settings, *, filters: TestFilters, repeat: int) -> None:
+    client = build_client(settings)
+
+    folder_id: str | None = None
+    if filters.folder:
+        folder_id = _resolve_folder_id(client, filters.folder)
+        if folder_id is None:
+            print(f"No folder named {filters.folder!r}.")
+            return
+
+    tests = _discover_tests(client, folder_id=folder_id, test_type=filters.test_type)
+    selected = _select_tests(tests, ids=filters.ids, name=filters.name)
     if not selected:
         print("No tests matched the given filters. Run sync_tests.py first if empty.")
         return
 
-    print(f"Running {len(selected)} test(s) against {settings.agent_id}:")
-    for _, test_name in selected:
-        print(f"  - {test_name}")
-
-    invocation = client.conversational_ai.agents.run_tests(
+    _announce(selected, repeat=repeat, agent_id=settings.agent_id)
+    invocation_id = _start_invocation(
+        client,
         agent_id=settings.agent_id,
-        tests=[SingleTestRunRequestModel(test_id=test_id) for test_id, _ in selected],
+        test_ids=[test_id for test_id, _ in selected],
+        repeat=repeat,
     )
-
-    while True:
-        inv = client.conversational_ai.tests.invocations.get(test_invocation_id=invocation.id)
-        if all(run.status in ("passed", "failed") for run in inv.test_runs):
-            break
-        time.sleep(POLL_SECONDS)
-
-    passed = sum(1 for run in inv.test_runs if run.status == "passed")
-    print(f"\nResults: {passed}/{len(inv.test_runs)} passed\n")
-    for run in inv.test_runs:
-        print(f"[{str(run.status).upper()}] {run.test_name}")
-        if run.condition_result is not None and run.condition_result.rationale:
-            print(f"    {run.condition_result.rationale}")
+    inv = _await_invocation(client, invocation_id=invocation_id, repeat=repeat)
+    _report(inv, repeat=repeat)
 
 
 def main() -> None:
@@ -141,8 +243,19 @@ def main() -> None:
         choices=sorted(TYPE_ALIASES),
         help="Only run tests of this type.",
     )
+    parser.add_argument(
+        "--repeat",
+        type=int,
+        default=1,
+        help=f"Run each selected test this many times (1-{MAX_REPEAT}) for a pass rate.",
+    )
     args = parser.parse_args()
-    _run(load_settings(args.env), args.ids, args.name, args.folder, args.test_type)
+    if not 1 <= args.repeat <= MAX_REPEAT:
+        parser.error(f"--repeat must be between 1 and {MAX_REPEAT}")
+    filters = TestFilters(
+        ids=args.ids, name=args.name, folder=args.folder, test_type=args.test_type
+    )
+    _run(load_settings(args.env), filters=filters, repeat=args.repeat)
 
 
 if __name__ == "__main__":
