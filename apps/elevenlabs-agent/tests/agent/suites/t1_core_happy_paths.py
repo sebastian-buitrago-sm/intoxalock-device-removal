@@ -48,8 +48,8 @@ def build(save_tool_id: str) -> list[TestsCreateRequestBody]:
         simulation_max_turns=15,
         success_condition=(
             f"The agent confirmed the appointment for '{SLOT_1}', obtained an installation "
-            f"quote of ${QUOTE}, called save_call_result before closing, and ended the call "
-            "politely without misunderstandings."
+            f"quote of ${QUOTE}, called save_call_result before closing, then called end_call "
+            "to end the call politely without misunderstandings."
         ),
     )
 
@@ -78,8 +78,8 @@ def build(save_tool_id: str) -> list[TestsCreateRequestBody]:
         success_condition=(
             f"The agent was told slot '{SLOT_1}' was unavailable, confirmed the appointment for "
             f"'{SLOT_2}' instead, obtained an installation quote of ${QUOTE}, called "
-            "save_call_result before closing, and ended the call politely without "
-            "misunderstandings."
+            "save_call_result before closing, then called end_call to end the call politely "
+            "without misunderstandings."
         ),
     )
 
@@ -114,8 +114,8 @@ def build(save_tool_id: str) -> list[TestsCreateRequestBody]:
             f"The agent was told both customer slots were unavailable, captured two "
             f"shop-proposed alternatives ('{SHOP_ALT_1}' and '{SHOP_ALT_2}') without treating "
             f"them as a confirmed appointment, obtained an installation quote of ${QUOTE}, "
-            "called save_call_result before closing, and ended the call politely without "
-            "misunderstandings."
+            "called save_call_result before closing, then called end_call to end the call "
+            "politely without misunderstandings."
         ),
     )
 
@@ -150,8 +150,8 @@ def build(save_tool_id: str) -> list[TestsCreateRequestBody]:
             f"The agent was told both customer slots were unavailable, captured a single "
             f"shop-proposed alternative ('{SHOP_ALT_1}') without treating it as a confirmed "
             f"appointment and without fabricating a second alternative, obtained an installation "
-            f"quote of ${QUOTE}, called save_call_result before closing, and ended the call "
-            "politely without misunderstandings."
+            f"quote of ${QUOTE}, called save_call_result before closing, then called end_call "
+            "to end the call politely without misunderstandings."
         ),
     )
 
