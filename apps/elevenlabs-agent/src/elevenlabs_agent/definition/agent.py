@@ -69,28 +69,26 @@ def build_agent_definition(
             ),
         ),
     )
-    platform_settings = AgentPlatformSettingsRequestModel(
-        evaluation=build_evaluation(),
-        call_limits=AgentCallLimits(
+    platform_settings_kwargs: dict[str, Any] = {
+        "evaluation": build_evaluation(),
+        "call_limits": AgentCallLimits(
             agent_concurrency_limit=settings.concurrency_limit,
             bursting_enabled=False,
         ),
-        testing=AgentTestingSettings(
+        "testing": AgentTestingSettings(
             attached_tests=[
                 AttachedTestModel(test_id=test_id) for test_id in attached_test_ids or []
             ]
         ),
-        workspace_overrides=(
-            AgentWorkspaceOverridesInput(
-                webhooks=ConvAiWebhooks(
-                    post_call_webhook_id=post_call_webhook_id,
-                    events=["transcript", "call_initiation_failure"],
-                )
+    }
+    if post_call_webhook_id:
+        platform_settings_kwargs["workspace_overrides"] = AgentWorkspaceOverridesInput(
+            webhooks=ConvAiWebhooks(
+                post_call_webhook_id=post_call_webhook_id,
+                events=["transcript", "call_initiation_failure"],
             )
-            if post_call_webhook_id
-            else None
-        ),
-    )
+        )
+    platform_settings = AgentPlatformSettingsRequestModel(**platform_settings_kwargs)
     return AgentDefinition(
         conversation_config=conversation_config,
         platform_settings=platform_settings,

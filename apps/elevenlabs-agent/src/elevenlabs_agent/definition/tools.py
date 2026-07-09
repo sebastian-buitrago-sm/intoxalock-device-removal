@@ -34,10 +34,13 @@ def _save_call_result_tool(webhook_base_url: str) -> PromptAgentApiModelOutputTo
     return PromptAgentApiModelOutputToolsItem_Webhook(
         name=SAVE_CALL_RESULT_TOOL_NAME,
         description=(
-            "Saves the outcome of this scheduling call to the Mindr system. "
+            "Saves the outcome of this scheduling call to the Intoxalock system. "
             "Call this tool before closing every call, without exception — whether a slot was confirmed, "
             "the shop proposed alternatives, the shop was unavailable, or a technical issue occurred. "
-            "Pass all five fields every time: use an empty string for any field that does not apply."
+            "Pass all five fields every time: use an empty string for any field that does not apply. "
+            "confirmed_slot is populated ONLY when the shop accepted one of the customer's slots; when "
+            "the shop instead proposed its own times, leave confirmed_slot empty and put those times in "
+            "shop_suggested_slot_1/2. All slot values use ISO 24-hour format 'YYYY-MM-DD HH:MM'."
         ),
         api_schema=WebhookToolApiSchemaConfigOutput(
             url=f"{webhook_base_url}/save-call-result/{{{{user_id}}}}",
@@ -61,26 +64,27 @@ def _save_call_result_tool(webhook_base_url: str) -> PromptAgentApiModelOutputTo
                     "confirmed_slot": LiteralJsonSchemaProperty(
                         type="string",
                         description=(
-                            "The appointment slot both parties verbally agreed on. "
-                            "Include the full date and time exactly as confirmed "
-                            "(e.g. 'Monday June 30th at 5am'). "
-                            "Pass an empty string if no slot was confirmed."
+                            "The customer-provided slot the shop accepted and Daisy verbally confirmed. "
+                            "ISO 24-hour format 'YYYY-MM-DD HH:MM', resolved to a specific calendar date "
+                            "(e.g. '2026-06-30 05:00'). "
+                            "Pass an empty string if the shop accepted no customer slot — including when "
+                            "it offered its own alternative times instead (those go in shop_suggested_slot_1/2)."
                         ),
                     ),
                     "shop_suggested_slot_1": LiteralJsonSchemaProperty(
                         type="string",
                         description=(
-                            "The first available slot the shop proposed when all customer-provided slots were rejected. "
-                            "Include the full date and time as stated by the shop "
-                            "(e.g. 'Wednesday July 2nd at 9am'). "
+                            "The first time the shop proposed after rejecting all customer-provided slots. "
+                            "ISO 24-hour format 'YYYY-MM-DD HH:MM', resolved to a specific calendar date "
+                            "(e.g. '2026-07-02 09:00'). "
                             "Pass an empty string if the shop did not suggest an alternative."
                         ),
                     ),
                     "shop_suggested_slot_2": LiteralJsonSchemaProperty(
                         type="string",
                         description=(
-                            "A second backup slot proposed by the shop. "
-                            "Include the full date and time as stated by the shop. "
+                            "A second time the shop proposed as a backup. "
+                            "ISO 24-hour format 'YYYY-MM-DD HH:MM', resolved to a specific calendar date. "
                             "Pass an empty string if no second alternative was offered."
                         ),
                     ),

@@ -94,15 +94,17 @@ Feature: Daisy confirms an installation appointment with a service shop
     And save_call_result carries confirmed_slot = slot 2 and quote_amount populated
 
   # Rec: tool-call + simulation (PAIR) — highest-risk Tier 1 branch: Daisy must switch
-  # to asking shop availability, capture TWO slots, and populate three payload fields.
+  # to asking shop availability, capture TWO slots, and populate two payload fields.
   # Both the navigation and the multi-field payload are non-trivial, so both earn a test.
+  # NOTE: shop-proposed times are NOT a confirmed appointment (the customer hasn't
+  # accepted), so confirmed_slot stays EMPTY here — the times go to shop_suggested_slot_1/2.
   @T1-3 @tier1 @tool-call @simulation @slot_confirmed @result_saved
   Scenario: Shop rejects both slots, offers two alternatives, and gives a quote
     When the shop rejects slot 1 and slot 2
     And the shop offers two alternative slots
     And Daisy asks for the quote and the shop gives an amount
-    Then Daisy confirms the shop's first alternative, then the quote
-    And save_call_result carries confirmed_slot = alt 1, shop_suggested_slot_1/2 populated, and quote_amount populated
+    Then Daisy reads both alternatives back for accuracy (not as a confirmation), then asks the quote
+    And save_call_result carries confirmed_slot EMPTY, shop_suggested_slot_1/2 populated (ISO format), and quote_amount populated
 
   # Rec: tool-call — the assertion is the payload (empty slots/quote + no_data_reason)
   # and that the quote step is skipped; the shop's line is easy to script deterministically.
@@ -122,8 +124,8 @@ Feature: Daisy confirms an installation appointment with a service shop
   Scenario: Shop rejects both slots and offers only ONE alternative
     When the shop rejects slot 1 and slot 2
     And the shop offers only one alternative slot
-    Then Daisy confirms that single alternative
-    And save_call_result carries shop_suggested_slot_2 empty
+    Then Daisy reads that single alternative back for accuracy
+    And save_call_result carries confirmed_slot empty, shop_suggested_slot_1 populated (ISO format), and shop_suggested_slot_2 empty
 
   # Rec: partial-sim — correction handling is multi-turn behavior, but seeding to the
   # confirmation step avoids re-simulating Steps 1-2 (cheaper, lower variance).
@@ -275,6 +277,9 @@ Feature: Daisy confirms an installation appointment with a service shop
     Then Daisy still confirms the slot (Step 3) and saves the correct fields
 
   # Rec: partial-sim — behavioral (does she pin down a time?); seed to the offer turn.
+  # NOTE: all slot fields are saved in ISO 24-hour format "YYYY-MM-DD HH:MM", resolved
+  # against {{today_shop_local}} (see prompt.py "Recording dates and times"). @E-3
+  # covers pinning down a missing time before that value can be formed.
   @E-3 @tier2 @partial-sim
   Scenario: Shop gives a partial slot with no time
     When the shop says only a day ("Tuesday works") without a time
@@ -369,13 +374,14 @@ Feature: Daisy confirms an installation appointment with a service shop
     When the shop quotes a price range instead of a single amount
     Then the value saved to quote_amount is undefined pending a rule
 
-  # Rec: (decide rule first) — @tool-call once a date-normalization rule exists.
+  # Rec: @tool-call — a normalization rule now EXISTS: slots are saved in ISO
+  # "YYYY-MM-DD HH:MM", resolved against {{today_shop_local}} (prompt.py "Recording
+  # dates and times"). This can graduate out of @needs-spec into an executable
+  # tool-call test asserting the resolved ISO value for a relative date.
   @NS-5 @needs-spec
   Scenario: Shop gives a relative or ambiguous date
-    # GAP: no rule for normalizing "next Tuesday" / "tomorrow" into an explicit,
-    # unambiguous date + time before saving confirmed_slot.
     When the shop offers a relative date like "next Tuesday" instead of a calendar date
-    Then how confirmed_slot should be normalized is undefined pending a rule
+    Then confirmed_slot is saved as the resolved ISO "YYYY-MM-DD HH:MM" value
 
   # Rec: (decide policy first) — likely @simulation once timezone handling is defined.
   @NS-6 @needs-spec

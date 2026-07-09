@@ -11,13 +11,16 @@ def build_evaluation() -> EvaluationSettingsInput:
         criteria=[
             PromptEvaluationCriteria(
                 id="slot_confirmed",
-                name="Appointment slot confirmed",
+                name="Appointment slot confirmed or alternatives collected",
                 conversation_goal_prompt=(
-                    "Return success ONLY if Daisy verbally confirmed a specific date "
-                    "and time and the shop agreed, AND save_call_result was called "
-                    "with a non-empty confirmed_slot. "
-                    "Return failure if the call ended with no slot confirmed and no "
-                    "shop alternatives collected. "
+                    "Return success if EITHER (a) Daisy verbally confirmed a specific "
+                    "date and time that the shop accepted from the customer's slots, "
+                    "AND save_call_result was called with a non-empty confirmed_slot; "
+                    "OR (b) the shop rejected the customer's slots and Daisy captured "
+                    "the shop's own availability into shop_suggested_slot_1/2 (in which "
+                    "case confirmed_slot is correctly empty). "
+                    "Return failure if the call ended with neither a confirmed slot nor "
+                    "any shop alternatives collected. "
                     "If the transcript is cut off or the outcome cannot be "
                     "determined, this resolves to unknown."
                 ),
