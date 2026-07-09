@@ -155,4 +155,34 @@ def build(save_tool_id: str) -> list[TestsCreateRequestBody]:
         ),
     )
 
-    return [t1_1_sim, t1_2_sim, t1_3_sim, t1_5_sim]
+    # scenarios.feature @T1-4 — proves Daisy recognizes the
+    # scheduling contact is unavailable, skips the quote step, and saves with
+    # no_data_reason populated instead.
+    t1_4_sim = TestsCreateRequestBody_Simulation(
+        name=slug_name(
+            "t1_4__simulation", "scheduling contact is not available"
+        ),
+        dynamic_variables=DYNAMIC_VARS,
+        simulation_scenario=(
+            "You are an employee at a vehicle service center who just answered the phone. "
+            "Daisy is calling to schedule an installation appointment. "
+            "Before she can propose a time, say that the person who handles scheduling is not "
+            "in right now and you can't help with that. "
+            "Do NOT offer to take a message with any time slot, and do NOT discuss a price. "
+            "Keep your reply short and natural."
+        ),
+        tool_mock_config=SimulationToolMockBehaviorConfig(
+            mocking_strategy="selected",
+            mocked_tool_ids=[save_tool_id],
+            fallback_strategy="call_real_tool",
+        ),
+        simulation_max_turns=15,
+        success_condition=(
+            "The agent was told the scheduling contact was not available, did NOT ask for an "
+            "installation quote, called save_call_result with all four slot/quote fields empty "
+            "and no_data_reason populated describing why, then called end_call to end the call "
+            "politely without misunderstandings."
+        ),
+    )
+
+    return [t1_1_sim, t1_2_sim, t1_3_sim, t1_4_sim, t1_5_sim]
