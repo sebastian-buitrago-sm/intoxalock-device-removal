@@ -32,6 +32,7 @@ def _call(
     vehicle_make: str,
     vehicle_model: str,
     vehicle_year: str,
+    shop_timezone: str,
 ) -> None:
     settings = load_settings(env)
     client = build_client(settings)
@@ -39,6 +40,7 @@ def _call(
         client,
         settings,
         to_number=to_number,
+        shop_timezone=shop_timezone,
         dynamic_variables={
             "user_id": user_id,
             "user_scheduled_slot_1": slot_1,
@@ -84,6 +86,12 @@ def main() -> None:
     call_parser.add_argument(
         "--year", required=True, dest="vehicle_year", help="Customer vehicle model year."
     )
+    call_parser.add_argument(
+        "--shop-timezone",
+        required=True,
+        dest="shop_timezone",
+        help="IANA timezone of the shop being called, e.g. America/Chicago.",
+    )
 
     args = parser.parse_args()
 
@@ -101,6 +109,7 @@ def main() -> None:
             vehicle_make=args.vehicle_make,
             vehicle_model=args.vehicle_model,
             vehicle_year=args.vehicle_year,
+            shop_timezone=args.shop_timezone,
         )
 
 

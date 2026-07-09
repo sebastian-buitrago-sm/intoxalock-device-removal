@@ -24,6 +24,25 @@ def build_evaluation() -> EvaluationSettingsInput:
                 scope="conversation",
             ),
             PromptEvaluationCriteria(
+                id="quote_requested",
+                name="Installation quote requested",
+                conversation_goal_prompt=(
+                    "Return success if Daisy asked the shop for an installation quote "
+                    "for the customer's vehicle (Step 4), regardless of whether the "
+                    "shop gave an amount, declined, or couldn't quote by phone. Also "
+                    "return success if the call ended early because the shop could "
+                    "not proceed (wrong person, unavailable, asked to call back) and "
+                    "save_call_result was called with no_data_reason populated — the "
+                    "prompt's guardrails correctly skip the quote step in that case. "
+                    "Return failure if the call reached closing (Step 5) without "
+                    "Daisy ever asking for a quote and without a valid reason to skip "
+                    "it. "
+                    "If the transcript is cut off or the outcome cannot be "
+                    "determined, this resolves to unknown."
+                ),
+                scope="conversation",
+            ),
+            PromptEvaluationCriteria(
                 id="result_saved",
                 name="save_call_result called before closing",
                 conversation_goal_prompt=(

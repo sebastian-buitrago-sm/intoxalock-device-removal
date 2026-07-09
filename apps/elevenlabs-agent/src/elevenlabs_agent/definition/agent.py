@@ -7,7 +7,9 @@ from elevenlabs.types import (
     AgentConfig,
     AgentPlatformSettingsRequestModel,
     AgentTestingSettings,
+    AgentWorkspaceOverridesInput,
     AttachedTestModel,
+    ConvAiWebhooks,
     ConversationalConfig,
     DynamicVariablesConfigOutput,
     PromptAgentApiModelOutput,
@@ -24,7 +26,6 @@ VOICE_ID = "EXAVITQu4vr4xnSDxMaL"
 TTS_MODEL_ID = "eleven_flash_v2"
 LLM = "gpt-5-mini"
 BACKUP_LLM_ORDER = ["gpt-5-mini", "claude-sonnet-4"]
-TIMEZONE = "America/New_York"
 
 DYNAMIC_VARIABLE_PLACEHOLDERS: dict[str, str | float | int | bool | list[Any] | None] = {
     "user_id": "unique identifier for the customer record used to route the call result to the correct account",
@@ -33,6 +34,10 @@ DYNAMIC_VARIABLE_PLACEHOLDERS: dict[str, str | float | int | bool | list[Any] | 
     "user_vehicle_make": "make of the customer's vehicle, e.g. Honda",
     "user_vehicle_model": "model of the customer's vehicle, e.g. Civic",
     "user_vehicle_year": "model year of the customer's vehicle, e.g. 2019",
+    "today_shop_local": (
+        "today's date at the shop's location, e.g. 'Thursday, July 9, 2026' — reference point for "
+        "resolving relative dates the shop states, such as 'tomorrow' or 'next Monday'"
+    ),
 }
 
 
@@ -43,7 +48,9 @@ class AgentDefinition:
 
 
 def build_agent_definition(
-    settings: Settings, attached_test_ids: Sequence[str] | None = None
+    settings: Settings,
+    attached_test_ids: Sequence[str] | None = None,
+    post_call_webhook_id: str | None = None,
 ) -> AgentDefinition:
     conversation_config = ConversationalConfig(
         tts=TtsConversationalConfigOutput(voice_id=VOICE_ID, model_id=TTS_MODEL_ID),
@@ -55,7 +62,6 @@ def build_agent_definition(
             prompt=PromptAgentApiModelOutput(
                 prompt=PROMPT,
                 llm=LLM,
-                timezone=TIMEZONE,
                 tools=build_tools(settings.webhook_base_url),
                 backup_llm_config=PromptAgentApiModelOutputBackupLlmConfig_Override(
                     order=BACKUP_LLM_ORDER,
@@ -73,6 +79,16 @@ def build_agent_definition(
             attached_tests=[
                 AttachedTestModel(test_id=test_id) for test_id in attached_test_ids or []
             ]
+        ),
+        workspace_overrides=(
+            AgentWorkspaceOverridesInput(
+                webhooks=ConvAiWebhooks(
+                    post_call_webhook_id=post_call_webhook_id,
+                    events=["transcript", "call_initiation_failure"],
+                )
+            )
+            if post_call_webhook_id
+            else None
         ),
     )
     return AgentDefinition(

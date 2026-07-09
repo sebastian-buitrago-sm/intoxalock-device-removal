@@ -6,6 +6,7 @@ from elevenlabs.types import CreateAgentResponseModel, GetAgentResponseModel
 
 from elevenlabs_agent.config import Settings
 from elevenlabs_agent.definition import build_agent_definition
+from elevenlabs_agent.sync.post_call_webhook import ensure_post_call_webhook
 
 
 def create_agent(client: ElevenLabs, settings: Settings) -> CreateAgentResponseModel:
@@ -14,7 +15,8 @@ def create_agent(client: ElevenLabs, settings: Settings) -> CreateAgentResponseM
     Does not touch settings.agent_id — there is none yet. Just returns the new
     agent's id; nothing is written to config/<env>.toml automatically.
     """
-    definition = build_agent_definition(settings)
+    post_call_webhook_id = ensure_post_call_webhook(client, settings)
+    definition = build_agent_definition(settings, post_call_webhook_id=post_call_webhook_id)
     return cast(
         CreateAgentResponseModel,
         client.conversational_ai.agents.create(
@@ -49,7 +51,8 @@ def sync_agent(
     resent as the full platform_settings, so evaluation and call limits are
     preserved rather than wiped.
     """
-    definition = build_agent_definition(settings, attached_test_ids)
+    post_call_webhook_id = ensure_post_call_webhook(client, settings)
+    definition = build_agent_definition(settings, attached_test_ids, post_call_webhook_id)
     # elevenlabs.* is untyped per mypy config, so the SDK call resolves to Any
     # even though it returns GetAgentResponseModel at runtime.
     return cast(
