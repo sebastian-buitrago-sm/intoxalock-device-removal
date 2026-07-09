@@ -29,12 +29,20 @@ from dataclasses import dataclass
 
 from elevenlabs.client import ElevenLabs
 from elevenlabs.conversational_ai.tests.types import TestsCreateRequestBody
+from elevenlabs.types import ToolRequestModel
 from elevenlabs_agent.client import build_client
 from elevenlabs_agent.config import Settings, load_settings
 from elevenlabs_agent.sync.agent_sync import sync_agent
 from suites import t1_core_happy_paths
 
 SuiteBuilder = Callable[[str], list[TestsCreateRequestBody]]
+
+# Canned success the simulations see when they mock save_call_result by id. Empty
+# parameter_conditions means the mock always activates. This lives here, not in the
+# production agent definition, because it is test-only: real calls always hit the
+# webhook. Without it a "mocked" webhook tool has no return value and falls through to
+# the live endpoint, whose errors trip the prompt's retry/give-up path and fail the sims.
+SAVE_TOOL_MOCK_RESULT = '{"success": true}'
 
 
 @dataclass(frozen=True)
@@ -64,8 +72,29 @@ def _ensure_folder(client: ElevenLabs, name: str) -> str:
     return str(client.conversational_ai.tests.folders.create(name=name).id)
 
 
+def _ensure_save_tool_mock(client: ElevenLabs, save_tool_id: str) -> None:
+    """Make the save_call_result tool return a canned success under simulation mocking.
+
+    Re-submits the tool's current config with response_mocks set. response_mocks is a
+    top-level field on the standalone tool, not part of the agent-side inline tool schema,
+    so it must be set through the tools API rather than sync_agent.
+    """
+    current = client.conversational_ai.tools.get(tool_id=save_tool_id)
+    if getattr(current, "response_mocks", None):
+        return
+    request = ToolRequestModel.model_validate(
+        {
+            "tool_config": current.tool_config.model_dump(),
+            "response_mocks": [{"mock_result": SAVE_TOOL_MOCK_RESULT, "parameter_conditions": []}],
+        }
+    )
+    client.conversational_ai.tools.update(tool_id=save_tool_id, request=request)
+    print(f"Set response mock on save_call_result tool ({save_tool_id})")
+
+
 def _sync(settings: Settings) -> None:
     client = build_client(settings)
+    _ensure_save_tool_mock(client, settings.save_tool_id)
 
     def find_existing_id(name: str, folder_id: str) -> str | None:
         cursor: str | None = None
