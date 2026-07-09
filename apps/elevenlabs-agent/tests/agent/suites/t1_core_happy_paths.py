@@ -1,98 +1,32 @@
 """Suite T1 — core revenue flow (happy paths). See scenarios.feature @T1-*.
 
-Every happy path is a tool-call + simulation PAIR: the tool-call half locks the
-saved payload (the contract); the simulation half proves Daisy navigates the flow
-on her own (the journey).
+Simulation tests only for now (tool-call halves deferred) — each proves Daisy
+navigates the flow on her own (the journey), ending in save_call_result + a clean close.
 """
 
 from elevenlabs.conversational_ai.tests.types import (
     TestsCreateRequestBody,
     TestsCreateRequestBody_Simulation,
-    TestsCreateRequestBody_Tool,
 )
-from elevenlabs.types import (
-    ConversationHistoryTranscriptCommonModelInput as Turn,
-)
-from elevenlabs.types import (
-    ReferencedToolCommonModel,
-    SimulationToolMockBehaviorConfig,
-    UnitTestToolCallEvaluationModelInput,
-    UnitTestToolCallParameter,
-)
+from elevenlabs.types import SimulationToolMockBehaviorConfig
 
 from .shared import (
     DYNAMIC_VARS,
     QUOTE,
     SHOP_ALT_1,
-    SHOP_ALT_1_ISO,
     SHOP_ALT_2,
-    SHOP_ALT_2_ISO,
     SLOT_1,
-    SLOT_1_ISO,
     SLOT_2,
-    VEHICLE_MAKE,
-    VEHICLE_MODEL,
-    VEHICLE_YEAR,
-    exact,
-    iso_slot,
     slug_name,
 )
 
 
 def build(save_tool_id: str) -> list[TestsCreateRequestBody]:
-    # scenarios.feature @T1-1 tool-call half. Slug t1_1__tool_call is the identity handle.
-    t1_1_tool = TestsCreateRequestBody_Tool(
-        name=slug_name("t1_1__tool_call", "shop accepts slot 1 and quotes"),
-        dynamic_variables=DYNAMIC_VARS,
-        chat_history=[
-            Turn(
-                role="agent",
-                time_in_call_secs=0,
-                message=(
-                    "Hi, I am Daisy calling from Intoxalock. We have a customer requesting "
-                    "an installation appointment. May I check your availability?"
-                ),
-            ),
-            Turn(role="user", time_in_call_secs=4, message="Sure, go ahead."),
-            Turn(role="agent", time_in_call_secs=6, message=f"Do you have an opening on {SLOT_1}?"),
-            Turn(role="user", time_in_call_secs=9, message="Yes, that time works for us."),
-            Turn(
-                role="agent",
-                time_in_call_secs=11,
-                message=f"Let me confirm: {SLOT_1} — is that correct?",
-            ),
-            Turn(role="user", time_in_call_secs=14, message="Yes, that's correct."),
-            Turn(
-                role="agent",
-                time_in_call_secs=16,
-                message=(
-                    f"For a {VEHICLE_YEAR} {VEHICLE_MAKE} {VEHICLE_MODEL}, "
-                    "what would the installation cost?"
-                ),
-            ),
-            Turn(role="user", time_in_call_secs=20, message=f"That'll be ${QUOTE}."),
-            Turn(
-                role="agent",
-                time_in_call_secs=23,
-                message=f"Just to confirm, that's ${QUOTE} for the installation — is that right?",
-            ),
-            Turn(role="user", time_in_call_secs=26, message="Yes, that's right."),
-        ],
-        tool_call_parameters=UnitTestToolCallEvaluationModelInput(
-            referenced_tool=ReferencedToolCommonModel(id=save_tool_id, type="webhook"),
-            parameters=[
-                UnitTestToolCallParameter(path="confirmed_slot", eval=iso_slot(SLOT_1_ISO)),
-                UnitTestToolCallParameter(path="quote_amount", eval=exact(QUOTE)),
-                UnitTestToolCallParameter(path="shop_suggested_slot_1", eval=exact("")),
-                UnitTestToolCallParameter(path="shop_suggested_slot_2", eval=exact("")),
-                UnitTestToolCallParameter(path="no_data_reason", eval=exact("")),
-            ],
-        ),
-    )
-
-    # scenarios.feature @T1-1 (simulation half) — proves Daisy navigates
-    # offer -> accept -> confirm -> quote -> save -> close on her own. Tools are
-    # mocked so save_call_result never hits the real webhook. Slug t1_1__simulation.
+    # scenarios.feature @T1-1 — proves Daisy navigates
+    # offer -> accept -> confirm -> quote -> save -> close on her own. save_call_result
+    # is mocked by id; other tools (notably end_call) run for real so the call can end
+    # cleanly. mocking_strategy="all" leaves the webhook unmocked (platform mocks only
+    # "mockable" tools), which raises "no mock matched" — hence "selected" by id.
     t1_1_sim = TestsCreateRequestBody_Simulation(
         name=slug_name("t1_1__simulation", "shop accepts slot 1 and quotes"),
         dynamic_variables=DYNAMIC_VARS,
@@ -107,8 +41,9 @@ def build(save_tool_id: str) -> list[TestsCreateRequestBody]:
             "Do NOT propose any alternative times. Keep your replies short and natural."
         ),
         tool_mock_config=SimulationToolMockBehaviorConfig(
-            mocking_strategy="all",
-            fallback_strategy="raise_error",
+            mocking_strategy="selected",
+            mocked_tool_ids=[save_tool_id],
+            fallback_strategy="call_real_tool",
         ),
         simulation_max_turns=15,
         success_condition=(
@@ -118,88 +53,106 @@ def build(save_tool_id: str) -> list[TestsCreateRequestBody]:
         ),
     )
 
-    # scenarios.feature @T1-3 tool-call half — the shop rejects both customer slots
-    # and proposes its own two times. The saved contract: confirmed_slot stays EMPTY
-    # (nothing the customer accepted), the shop's times land in shop_suggested_slot_1/2
-    # in ISO format. This locks the exact defect from the live test call.
-    t1_3_tool = TestsCreateRequestBody_Tool(
-        name=slug_name("t1_3__tool_call", "shop rejects both slots, offers two alternatives"),
+    # scenarios.feature @T1-2 — proves Daisy navigates the
+    # reject-then-offer-next branch on her own before quoting and closing.
+    t1_2_sim = TestsCreateRequestBody_Simulation(
+        name=slug_name("t1_2__simulation", "shop rejects slot 1, accepts slot 2, and quotes"),
         dynamic_variables=DYNAMIC_VARS,
-        chat_history=[
-            Turn(
-                role="agent",
-                time_in_call_secs=0,
-                message=(
-                    "Hi, I am Daisy calling from Intoxalock. We have a customer requesting "
-                    "an installation appointment. May I check your availability?"
-                ),
-            ),
-            Turn(role="user", time_in_call_secs=4, message="Sure, go ahead."),
-            Turn(role="agent", time_in_call_secs=6, message=f"Do you have an opening on {SLOT_1}?"),
-            Turn(role="user", time_in_call_secs=9, message="No, we're fully booked that day."),
-            Turn(
-                role="agent",
-                time_in_call_secs=11,
-                message=f"No problem. Do you have an opening on {SLOT_2}?",
-            ),
-            Turn(role="user", time_in_call_secs=14, message="No, sorry, not then either."),
-            Turn(
-                role="agent",
-                time_in_call_secs=16,
-                message=(
-                    "No problem. Can you share your next available date and time "
-                    "for an installation?"
-                ),
-            ),
-            Turn(role="user", time_in_call_secs=20, message=f"We could do {SHOP_ALT_1}."),
-            Turn(
-                role="agent",
-                time_in_call_secs=23,
-                message=(
-                    "Can I know a second available time, in case the first doesn't "
-                    "work for our customer?"
-                ),
-            ),
-            Turn(role="user", time_in_call_secs=27, message=f"Sure, {SHOP_ALT_2} also works."),
-            Turn(
-                role="agent",
-                time_in_call_secs=30,
-                message=(
-                    f"Let me make sure I have these right: {SHOP_ALT_1}, and {SHOP_ALT_2} "
-                    "— is that correct?"
-                ),
-            ),
-            Turn(role="user", time_in_call_secs=34, message="Yes, that's correct."),
-            Turn(
-                role="agent",
-                time_in_call_secs=36,
-                message=(
-                    f"For a {VEHICLE_YEAR} {VEHICLE_MAKE} {VEHICLE_MODEL}, "
-                    "what would the installation cost?"
-                ),
-            ),
-            Turn(role="user", time_in_call_secs=40, message=f"That'll be ${QUOTE}."),
-            Turn(
-                role="agent",
-                time_in_call_secs=43,
-                message=f"Just to confirm, that's ${QUOTE} for the installation — is that right?",
-            ),
-            Turn(role="user", time_in_call_secs=46, message="Yes, that's right."),
-        ],
-        tool_call_parameters=UnitTestToolCallEvaluationModelInput(
-            referenced_tool=ReferencedToolCommonModel(id=save_tool_id, type="webhook"),
-            parameters=[
-                UnitTestToolCallParameter(path="confirmed_slot", eval=exact("")),
-                UnitTestToolCallParameter(
-                    path="shop_suggested_slot_1", eval=iso_slot(SHOP_ALT_1_ISO)
-                ),
-                UnitTestToolCallParameter(
-                    path="shop_suggested_slot_2", eval=iso_slot(SHOP_ALT_2_ISO)
-                ),
-                UnitTestToolCallParameter(path="quote_amount", eval=exact(QUOTE)),
-                UnitTestToolCallParameter(path="no_data_reason", eval=exact("")),
-            ],
+        simulation_scenario=(
+            "You are an employee at a vehicle service center who just answered the phone. "
+            "Daisy is calling to schedule an installation appointment. "
+            "You do NOT have availability for the FIRST time slot she proposes — say you are "
+            "fully booked that day. You DO have availability for the SECOND time slot she "
+            "proposes — say yes, that works. "
+            "When she repeats the second slot back to confirm, confirm it clearly. "
+            f"When she asks what the installation would cost for the vehicle, say it is ${QUOTE}. "
+            "When she repeats the price back to confirm, confirm it clearly. "
+            "Keep your replies short and natural."
+        ),
+        tool_mock_config=SimulationToolMockBehaviorConfig(
+            mocking_strategy="selected",
+            mocked_tool_ids=[save_tool_id],
+            fallback_strategy="call_real_tool",
+        ),
+        simulation_max_turns=15,
+        success_condition=(
+            f"The agent was told slot '{SLOT_1}' was unavailable, confirmed the appointment for "
+            f"'{SLOT_2}' instead, obtained an installation quote of ${QUOTE}, called "
+            "save_call_result before closing, and ended the call politely without "
+            "misunderstandings."
         ),
     )
 
-    return [t1_1_tool, t1_1_sim, t1_3_tool]
+    # scenarios.feature @T1-3 — proves Daisy navigates the
+    # reject-both -> ask-shop-availability -> capture-two-alternatives branch on her own,
+    # reading both back for accuracy (not a confirmation) before quoting and closing.
+    t1_3_sim = TestsCreateRequestBody_Simulation(
+        name=slug_name(
+            "t1_3__simulation", "shop rejects both slots, offers two alternatives, and quotes"
+        ),
+        dynamic_variables=DYNAMIC_VARS,
+        simulation_scenario=(
+            "You are an employee at a vehicle service center who just answered the phone. "
+            "Daisy is calling to schedule an installation appointment. "
+            "You do NOT have availability for EITHER of the two time slots she proposes — say "
+            "you're fully booked both times. "
+            f"When she asks for your next available date and time, offer {SHOP_ALT_1}. "
+            f"When she asks for a second available time, offer {SHOP_ALT_2}. "
+            "When she reads both times back to make sure she has them right, confirm they are "
+            "correct — this is an accuracy check, not a booking confirmation. "
+            f"When she asks what the installation would cost for the vehicle, say it is ${QUOTE}. "
+            "When she repeats the price back to confirm, confirm it clearly. "
+            "Keep your replies short and natural."
+        ),
+        tool_mock_config=SimulationToolMockBehaviorConfig(
+            mocking_strategy="selected",
+            mocked_tool_ids=[save_tool_id],
+            fallback_strategy="call_real_tool",
+        ),
+        simulation_max_turns=15,
+        success_condition=(
+            f"The agent was told both customer slots were unavailable, captured two "
+            f"shop-proposed alternatives ('{SHOP_ALT_1}' and '{SHOP_ALT_2}') without treating "
+            f"them as a confirmed appointment, obtained an installation quote of ${QUOTE}, "
+            "called save_call_result before closing, and ended the call politely without "
+            "misunderstandings."
+        ),
+    )
+
+    # scenarios.feature @T1-5 — proves Daisy navigates the
+    # reject-both -> single-alternative-only branch on her own before quoting and closing.
+    t1_5_sim = TestsCreateRequestBody_Simulation(
+        name=slug_name(
+            "t1_5__simulation", "shop rejects both slots, offers one alternative, and quotes"
+        ),
+        dynamic_variables=DYNAMIC_VARS,
+        simulation_scenario=(
+            "You are an employee at a vehicle service center who just answered the phone. "
+            "Daisy is calling to schedule an installation appointment. "
+            "You do NOT have availability for EITHER of the two time slots she proposes — say "
+            "you're fully booked both times. "
+            f"When she asks for your next available date and time, offer {SHOP_ALT_1}. "
+            "When she asks for a SECOND available time, say that's the only opening you have "
+            "right now — do NOT offer a second time. "
+            "When she reads the single time back to make sure she has it right, confirm it is "
+            "correct — this is an accuracy check, not a booking confirmation. "
+            f"When she asks what the installation would cost for the vehicle, say it is ${QUOTE}. "
+            "When she repeats the price back to confirm, confirm it clearly. "
+            "Keep your replies short and natural."
+        ),
+        tool_mock_config=SimulationToolMockBehaviorConfig(
+            mocking_strategy="selected",
+            mocked_tool_ids=[save_tool_id],
+            fallback_strategy="call_real_tool",
+        ),
+        simulation_max_turns=15,
+        success_condition=(
+            f"The agent was told both customer slots were unavailable, captured a single "
+            f"shop-proposed alternative ('{SHOP_ALT_1}') without treating it as a confirmed "
+            f"appointment and without fabricating a second alternative, obtained an installation "
+            f"quote of ${QUOTE}, called save_call_result before closing, and ended the call "
+            "politely without misunderstandings."
+        ),
+    )
+
+    return [t1_1_sim, t1_2_sim, t1_3_sim, t1_5_sim]

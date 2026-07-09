@@ -76,6 +76,7 @@ Feature: Daisy confirms an installation appointment with a service shop
 
   # Rec: tool-call + simulation (PAIR) — the canonical end-to-end. Only place both
   # guarantees (exact payload AND autonomous navigation) are worth double maintenance.
+  # Tool-call half deferred for now — simulation implemented first.
   @T1-1 @tier1 @tool-call @simulation @slot_confirmed @result_saved
   Scenario: Shop accepts the first offered slot and gives a quote (full happy path)
     When the shop accepts slot 1 immediately
@@ -85,7 +86,7 @@ Feature: Daisy confirms an installation appointment with a service shop
 
   # Rec: tool-call + simulation (PAIR) — core happy path (confirmed appointment).
   # tool-call locks confirmed_slot = slot 2; simulation proves Daisy navigates the
-  # reject-then-offer-next branch on her own.
+  # reject-then-offer-next branch on her own. Tool-call half deferred for now.
   @T1-2 @tier1 @tool-call @simulation @slot_confirmed @result_saved
   Scenario: Shop rejects the first slot, accepts the second, and gives a quote
     When the shop rejects slot 1 and accepts slot 2
@@ -98,6 +99,7 @@ Feature: Daisy confirms an installation appointment with a service shop
   # Both the navigation and the multi-field payload are non-trivial, so both earn a test.
   # NOTE: shop-proposed times are NOT a confirmed appointment (the customer hasn't
   # accepted), so confirmed_slot stays EMPTY here — the times go to shop_suggested_slot_1/2.
+  # Tool-call half deferred for now.
   @T1-3 @tier1 @tool-call @simulation @slot_confirmed @result_saved
   Scenario: Shop rejects both slots, offers two alternatives, and gives a quote
     When the shop rejects slot 1 and slot 2
@@ -114,12 +116,26 @@ Feature: Daisy confirms an installation appointment with a service shop
     Then Daisy does NOT attempt the quote step
     And save_call_result carries all four slot/quote fields empty and no_data_reason populated
 
+  # Rec: tool-call + simulation (PAIR) — same alternative-offering branch as T1-3, but the
+  # shop volunteers only ONE alternative when asked for a second. Payload contract differs
+  # from T1-3 only in that shop_suggested_slot_2 stays empty (compare T2-1, which is the
+  # same one-alternative branch WITHOUT the quote step — this is its full-happy-path twin).
+  # Tool-call half deferred for now.
+  @T1-5 @tier1 @tool-call @simulation @slot_confirmed @result_saved
+  Scenario: Shop rejects both slots, offers only one alternative, and gives a quote
+    When the shop rejects slot 1 and slot 2
+    And the shop offers only one alternative slot and has no second time available
+    And Daisy asks for the quote and the shop gives an amount
+    Then Daisy reads the single alternative back for accuracy (not as a confirmation), then asks the quote
+    And save_call_result carries confirmed_slot EMPTY, shop_suggested_slot_1 populated (ISO format), shop_suggested_slot_2 EMPTY, and quote_amount populated
+
   # ===================================================================
   # SUITE T2 — branches & robustness.
   # ===================================================================
 
   # Rec: tool-call — the whole point is a payload rule (shop_suggested_slot_2 empty);
-  # deterministic and cheap.
+  # deterministic and cheap. This scenario stops before the quote step; see T1-5 for the
+  # same branch carried through to a quote (the full happy-path version).
   @T2-1 @tier2 @tool-call @result_saved
   Scenario: Shop rejects both slots and offers only ONE alternative
     When the shop rejects slot 1 and slot 2

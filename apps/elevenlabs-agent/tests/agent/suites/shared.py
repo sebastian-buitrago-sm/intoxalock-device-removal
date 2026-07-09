@@ -57,6 +57,16 @@ def iso_slot(value: str) -> UnitTestToolCallParameterEval_Regex:
     return UnitTestToolCallParameterEval_Regex(pattern=pattern)
 
 
+def body_path(field: str) -> str:
+    """Address a webhook request-body field in a tool-call parameter assertion.
+
+    ElevenLabs resolves a tool-call `path` against the structured call
+    (body / path_params / query_params), so body fields must be prefixed
+    "body." — a bare field name evaluates as "not found in tool call parameters".
+    """
+    return f"body.{field}"
+
+
 def slug_name(slug: str, description: str) -> str:
     """Compose a test name from a stable snake_case slug and a human description.
 
