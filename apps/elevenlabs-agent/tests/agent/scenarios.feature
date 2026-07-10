@@ -45,7 +45,7 @@
 # ---------------------------------------------------------------------------
 #
 # Scenario IDs: each scenario's FIRST tag is a stable ID (e.g. @T1-1, @T5-2, @NS-2)
-# grouped by suite (T1..T5 tiers, NS needs-spec). sync_tests.py points
+# grouped by suite (T1..T6 tiers, NS needs-spec). sync_tests.py points
 # back here by ID instead of restating the Gherkin. IDs are stable handles — append
 # new ones, never renumber.
 #
@@ -290,19 +290,31 @@ Feature: Daisy confirms a device removal appointment with a service shop
   # with a few live `agent call` runs as a launch gate, not with text tests.
 
   # ===================================================================
+  # SUITE T6 — voicemail handling. Graduated out of @needs-spec (was NS-1)
+  # once prompt.py defined a policy ("Voicemail" section): leave a brief,
+  # generic message, save with no_data_reason = "reached voicemail", and
+  # close — no scheduling or quote is attempted.
+  # ===================================================================
+
+  # Rec: tool-call — the voicemail_detection system tool's result is scriptable
+  # (ConversationHistoryTranscriptSystemToolResultCommonModelInputResult_VoicemailDetectionSuccess),
+  # so its firing can be seeded into chat_history deterministically, the same
+  # shape as T4's scripted save_call_result failures. No need for a full
+  # simulation: the model can't organically "become" an answering machine, and
+  # the assertion is about exact saved parameters, not multi-turn navigation.
+  @T6-1 @tier2 @tool-call
+  Scenario: Call is answered by voicemail
+    Given the call is answered by voicemail and voicemail_detection fires
+    When Daisy reacts to the voicemail signal
+    Then Daisy leaves a brief, generic message with no vehicle or customer specifics
+    And save_call_result carries all four slot/quote fields empty and no_data_reason = "reached voicemail"
+    And end_call fires in the same turn
+
+  # ===================================================================
   # SUITE NS — @needs-spec. Prompt/policy gaps: cannot assert CORRECT
   # behavior until a decision is made. Test type is TBD until the policy
   # exists. Highest-leverage items (2 are compliance).
   # ===================================================================
-
-  # Rec: (decide policy first) — likely @simulation once behavior is defined, since
-  # voicemail handling is a runtime/detection flow.
-  @NS-1 @needs-spec
-  Scenario: Call is answered by voicemail
-    # GAP: voicemail_detection is wired (definition/tools.py) but prompt.py
-    # gives no instruction — leave a message? hang up? save with a reason?
-    When the call is answered by voicemail
-    Then Daisy's behavior is undefined pending a prompt update
 
   # Rec: (decide policy first) — likely @llm (single-reply disclosure) once a policy line
   # exists in the prompt.
@@ -329,14 +341,6 @@ Feature: Daisy confirms a device removal appointment with a service shop
     When the shop quotes a price range instead of a single amount
     Then the value saved to quote_amount is undefined pending a rule
 
-  # Rec: @tool-call — a normalization rule now EXISTS: slots are saved in ISO
-  # "YYYY-MM-DD HH:MM", resolved against {{today_shop_local}} (prompt.py "Recording
-  # dates and times"). This can graduate out of @needs-spec into an executable
-  # tool-call test asserting the resolved ISO value for a relative date.
-  @NS-5 @needs-spec
-  Scenario: Shop gives a relative or ambiguous date
-    When the shop offers a relative date like "next Tuesday" instead of a calendar date
-    Then confirmed_slot is saved as the resolved ISO "YYYY-MM-DD HH:MM" value
 
   # Rec: (decide policy first) — likely @simulation once timezone handling is defined.
   @NS-6 @needs-spec

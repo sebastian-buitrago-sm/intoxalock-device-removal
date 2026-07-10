@@ -5,7 +5,7 @@ the ElevenLabs platform against the deployed agent — distinct from the pytest
 suite one level up, which covers this project's own Python code.
 
 Tests are organized into suites under suites/, one module per suite, mirroring
-scenarios.feature (T1..T5 tiers, NS needs-spec). Each suite module
+scenarios.feature (T1..T6 tiers, NS needs-spec). Each suite module
 exposes build(save_tool_id) -> list[TestsCreateRequestBody]; register a new suite
 in SUITES below, pairing its build with the ElevenLabs folder its tests live in.
 
@@ -40,6 +40,7 @@ from suites import (
     t3_guardrails_and_adversarial,
     t4_technical_failure,
     t5_edge_cases,
+    t6_voicemail_handling,
 )
 
 SuiteBuilder = Callable[[str], list[TestsCreateRequestBody]]
@@ -72,6 +73,7 @@ SUITES: list[Suite] = [
     ),
     Suite(folder="T4_technical_failure", build=t4_technical_failure.build),
     Suite(folder="T5_edge_cases", build=t5_edge_cases.build),
+    Suite(folder="T6_voicemail_handling", build=t6_voicemail_handling.build),
 ]
 
 
