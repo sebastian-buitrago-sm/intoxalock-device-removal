@@ -91,7 +91,7 @@ def _save_call_result_tool(webhook_base_url: str) -> PromptAgentApiModelOutputTo
                     "quote_amount": LiteralJsonSchemaProperty(
                         type="string",
                         description=(
-                            "The installation quote the shop gave for the customer's vehicle, in whole "
+                            "The device removal quote the shop gave for the customer's vehicle, in whole "
                             "USD, digits only (e.g. '250'). No currency symbol or words. "
                             "Pass an empty string if the shop did not provide a quote."
                         ),
@@ -99,10 +99,11 @@ def _save_call_result_tool(webhook_base_url: str) -> PromptAgentApiModelOutputTo
                     "no_data_reason": LiteralJsonSchemaProperty(
                         type="string",
                         description=(
-                            "Short reason no scheduling data could be gathered on this call "
-                            "(e.g. 'shop unavailable at the moment', 'person in charge not available', "
-                            "'shop asked to call back'). "
-                            "Pass an empty string if the call proceeded normally, regardless of outcome."
+                            "Short reason no scheduling data could be gathered, OR why quote_amount is "
+                            "empty (e.g. 'shop unavailable at the moment', 'person in charge not "
+                            "available', 'shop asked to call back', 'shop couldn't quote by phone'). "
+                            "Pass an empty string only if the call proceeded normally and a quote was "
+                            "obtained."
                         ),
                     ),
                 },

@@ -28,9 +28,9 @@ def build_evaluation() -> EvaluationSettingsInput:
             ),
             PromptEvaluationCriteria(
                 id="quote_requested",
-                name="Installation quote requested",
+                name="Device removal quote requested",
                 conversation_goal_prompt=(
-                    "Return success if Daisy asked the shop for an installation quote "
+                    "Return success if Daisy asked the shop for a device removal quote "
                     "for the customer's vehicle (Step 4), regardless of whether the "
                     "shop gave an amount, declined, or couldn't quote by phone. Also "
                     "return success if the call ended early because the shop could "

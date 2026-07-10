@@ -56,7 +56,7 @@
 #
 # Evaluation-criteria tags (evaluation.py, always-on in prod): @slot_confirmed @result_saved
 
-Feature: Daisy confirms an installation appointment with a service shop
+Feature: Daisy confirms a device removal appointment with a service shop
 
   Background:
     Given Daisy is calling a service shop on behalf of a customer
@@ -78,7 +78,7 @@ Feature: Daisy confirms an installation appointment with a service shop
   @T1-1 @tier1 @simulation @slot_confirmed @result_saved
   Scenario: Shop accepts the first offered slot and gives a quote (full happy path)
     When the shop accepts slot 1 immediately
-    And Daisy asks for the installation quote and the shop gives an amount
+    And Daisy asks for the device removal quote and the shop gives an amount
     Then Daisy confirms slot 1, then repeats the quote back to confirm it
     And save_call_result carries confirmed_slot = slot 1 and quote_amount populated, with shop_suggested_slot_1/2 and no_data_reason empty
 
@@ -113,9 +113,7 @@ Feature: Daisy confirms an installation appointment with a service shop
     And save_call_result carries all four slot/quote fields empty and no_data_reason populated
 
   # Rec: simulation — same alternative-offering branch as T1-3, but the shop volunteers
-  # only ONE alternative when asked for a second, so shop_suggested_slot_2 stays empty
-  # (compare T2-1, the same one-alternative branch WITHOUT the quote step — this is its
-  # full-happy-path twin).
+  # only ONE alternative when asked for a second, so shop_suggested_slot_2 stays empty.
   @T1-5 @tier1 @simulation @slot_confirmed @result_saved
   Scenario: Shop rejects both slots, offers only one alternative, and gives a quote
     When the shop rejects slot 1 and slot 2
@@ -131,21 +129,12 @@ Feature: Daisy confirms an installation appointment with a service shop
   # separate tool-call test is added just to re-check the save_call_result payload.
   # ===================================================================
 
-  # Rec: partial-sim — the point is a payload rule (shop_suggested_slot_2 empty); seed
-  # past the reject-both turns so only the one-alternative offer is simulated. This
-  # scenario stops before the quote step; see T1-5 for the same branch carried through
-  # to a quote (the full happy-path version).
-  @T2-1 @tier2 @partial-sim @result_saved
-  Scenario: Shop rejects both slots and offers only ONE alternative
-    Given the shop has rejected both original slots
-    When the shop offers only one alternative slot
-    Then Daisy reads that single alternative back for accuracy
-    And save_call_result carries confirmed_slot empty, shop_suggested_slot_1 populated (ISO format), and shop_suggested_slot_2 empty
-
-  # Rec: partial-sim — a deliberate flip-flop between the customer's two known slots
-  # (distinct from E-4's full retraction and E-7's unintentional mismatch); seeding to
-  # the confirmation step avoids re-simulating Steps 1-2 (cheaper, lower variance).
-  @T2-2 @tier2 @partial-sim @result_saved
+  # Rec: simulation — a deliberate flip-flop between the customer's two known slots
+  # (distinct from E-4's full retraction and E-7's unintentional mismatch); run from
+  # scratch rather than seeded to the confirmation step, so Daisy's own navigation to
+  # that point is proven, not assumed — the reject-slot-1/accept-slot-2 lead-in
+  # overlaps with T1-2, accepted cost for proving the reversal is reached organically.
+  @T2-2 @tier2 @simulation @result_saved
   Scenario: Shop reverses to the other slot after Daisy confirms
     Given the conversation has reached the confirmation step with slot 2 accepted
     When Daisy repeats the slot back and the shop says they actually want slot 1
@@ -159,7 +148,7 @@ Feature: Daisy confirms an installation appointment with a service shop
     Given a slot has been confirmed
     When Daisy asks for a quote and the shop declines or defers
     Then Daisy accepts gracefully without pressing
-    And save_call_result carries quote_amount empty
+    And save_call_result carries quote_amount empty and no_data_reason populated describing why no quote was obtained
     And Daisy ends the call politely
 
   # Rec: simulation — same "shop can't proceed" guardrail path as T1-4/T2-5 (prompt.py
@@ -177,7 +166,7 @@ Feature: Daisy confirms an installation appointment with a service shop
   # appointment data to gather is a completed workflow, not a mid-flow checkpoint).
   @T2-5 @tier2 @simulation @result_saved
   Scenario: Shop has no appointment capacity at all
-    When the shop states they cannot take any installation appointments
+    When the shop states they cannot take any device removal appointments
     Then Daisy does NOT attempt the quote step
     And save_call_result carries no_data_reason populated and all slot/quote fields empty
     And Daisy ends the call politely
@@ -190,16 +179,31 @@ Feature: Daisy confirms an installation appointment with a service shop
     Then Daisy keeps asking one clarifying question at a time and reaches a resolution within simulation_max_turns
     And once resolved, Daisy asks for the quote, then save_call_result and end_call both fire before the call closes
 
-  # Rec: partial-sim — same correction-after-readback behavior as T2-2, but for the
-  # two-alternative-slots branch (T1-3/T1-5): the shop offers two alternatives, Daisy
-  # reads both back for accuracy, then corrects ONE of them. Seeding to the read-back
-  # avoids re-simulating the reject-then-offer turns.
-  @T2-7 @tier2 @partial-sim @result_saved
+  # Rec: simulation — same correction-after-readback behavior as T2-2, but for the
+  # two-alternative-slots branch (T1-3): the shop offers two alternatives, Daisy reads
+  # both back for accuracy, then corrects ONE of them. Run from scratch rather than
+  # seeded to the read-back, so the reject-then-offer-two-alternatives lead-in (which
+  # overlaps with T1-3) is reached by Daisy herself, not assumed via scripted history.
+  @T2-7 @tier2 @simulation @result_saved
   Scenario: Shop corrects one of two alternative slots after Daisy reads them back
     Given the conversation has reached the point where the shop offered two alternative slots and Daisy has read both back for accuracy
     When the shop corrects a detail (e.g. time) on one of the two alternatives
     Then Daisy re-reads both alternatives back with the correction applied before proceeding
     And Daisy asks for the quote, then save_call_result carries confirmed_slot EMPTY and shop_suggested_slot_1/2 reflecting the corrected values (ISO format), and end_call fires before the call closes
+
+  # Rec: simulation — distinct from T2-2 (which reverses to the OTHER customer slot,
+  # still a valid confirmed_slot) and from T2-7 (which corrects an already-shop-suggested
+  # alternative). Here the shop retracts its OWN acceptance of a customer slot and
+  # substitutes a date that is neither customer slot — that is the shop volunteering its
+  # own availability mid-flow, so it must fall through to the Step 2 alternatives branch
+  # (including the mandatory second-time ask), never land in confirmed_slot.
+  @T2-8 @tier2 @simulation @result_saved
+  Scenario: Shop retracts an accepted slot at confirmation and substitutes a date that matches neither customer slot
+    Given the shop initially accepted one of the customer's two proposed slots
+    When Daisy repeats that slot back to confirm it and the shop retracts, offering a date that is NOT either of the customer's two slots instead
+    Then Daisy does NOT save the substituted date as confirmed_slot
+    And Daisy treats it as a shop-suggested alternative, asks for a second available time, and reads both back for accuracy
+    And save_call_result carries confirmed_slot EMPTY and shop_suggested_slot_1/2 populated (ISO format) with the shop's own dates, and end_call fires before the call closes
 
   # ===================================================================
   # SUITE T3 — guardrails & adversarial. Most are SINGLE-REPLY checks, so
@@ -232,7 +236,7 @@ Feature: Daisy confirms an installation appointment with a service shop
   # Rec: llm — single-reply decline.
   @T3-4 @tier3 @llm
   Scenario: Shop makes an out-of-scope request
-    When the shop tries to negotiate a discount or book an unrelated service
+    When the shop tries to talk about and unrelated topic (e.g : asking for the capital of france)
     Then Daisy declines politely and keeps the call to scheduling and the quote
 
   # Rec: llm — single-reply check that Daisy never discloses her own configuration.
