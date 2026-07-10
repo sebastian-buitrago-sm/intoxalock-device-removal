@@ -34,7 +34,11 @@ from elevenlabs.types import ToolRequestModel
 from elevenlabs_agent.client import build_client
 from elevenlabs_agent.config import Settings, load_settings
 from elevenlabs_agent.sync.agent_sync import sync_agent
-from suites import t1_core_happy_paths, t2_shop_pushback_and_corrections
+from suites import (
+    t1_core_happy_paths,
+    t2_shop_pushback_and_corrections,
+    t3_guardrails_and_adversarial,
+)
 
 SuiteBuilder = Callable[[str], list[TestsCreateRequestBody]]
 
@@ -59,6 +63,10 @@ SUITES: list[Suite] = [
     Suite(
         folder="T2_shop_pushback_and_corrections",
         build=t2_shop_pushback_and_corrections.build,
+    ),
+    Suite(
+        folder="T3_guardrails_and_adversarial",
+        build=t3_guardrails_and_adversarial.build,
     ),
 ]
 
