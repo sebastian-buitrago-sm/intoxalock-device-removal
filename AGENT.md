@@ -9,7 +9,7 @@ Spec-driven, one vertical slice at a time. Each step hands off to the next:
 3. **`/spec-builder`** (skill) — TDD-build one slice from its `.feature`, following `docs/architecture`; logs each cycle to `docs/specs/<feature>/progress/tdd_<slice>.md`; gates on `make check`.
 4. **`judge-iteration`** (subagent) — independently review the slice (coverage, TDD discipline, hexagon boundaries, gates) → `docs/specs/<feature>/progress/judge_<slice>.md`.
 
-Sources live in `agents/{skills,agents}/`, symlinked into `.claude/`.
+Sources live in `.agents/{skills,agents}/`, symlinked into `.claude/`.
 
 ## Comments
 
