@@ -68,6 +68,11 @@ def body_path(field: str) -> str:
     return f"body.{field}"
 
 
+def path_param_path(field: str) -> str:
+    """Address a webhook path parameter (e.g. user_id) — see body_path."""
+    return f"path_params.{field}"
+
+
 def turn(
     role: Literal["user", "agent"], message: str, at_sec: int
 ) -> ConversationHistoryTranscriptCommonModelInput:

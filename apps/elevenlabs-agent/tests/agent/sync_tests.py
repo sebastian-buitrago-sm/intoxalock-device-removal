@@ -38,6 +38,7 @@ from suites import (
     t1_core_happy_paths,
     t2_shop_pushback_and_corrections,
     t3_guardrails_and_adversarial,
+    t4_technical_failure,
 )
 
 SuiteBuilder = Callable[[str], list[TestsCreateRequestBody]]
@@ -68,6 +69,7 @@ SUITES: list[Suite] = [
         folder="T3_guardrails_and_adversarial",
         build=t3_guardrails_and_adversarial.build,
     ),
+    Suite(folder="T4_technical_failure", build=t4_technical_failure.build),
 ]
 
 

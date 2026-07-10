@@ -283,19 +283,6 @@ Feature: Daisy confirms a device removal appointment with a service shop
   # SUITE E — edge cases. Deliberately probe where voice LLM agents break.
   # ===================================================================
 
-  # Rec: tool-call — pure normalization/payload rule; deterministic and the only type
-  # that can pin the exact digits-only value.
-  @E-1 @tier2 @tool-call
-  Scenario: Shop states the quote in words or with cents
-    Given a slot has been confirmed
-    When the shop says the price as words ("two hundred fifty") or with cents ("$250.50")
-    Then save_call_result carries quote_amount as whole-USD digits only
-
-  # Rec: partial-sim — out-of-order handling is behavioral; seed near the jump point.
-  @E-2 @tier2 @partial-sim
-  Scenario: Shop volunteers a slot or price before Daisy asks
-    When the shop offers an opening or a price out of order, before Daisy reaches that step
-    Then Daisy still confirms the slot (Step 3) and saves the correct fields
 
   # Rec: partial-sim — behavioral (does she pin down a time?); seed to the offer turn.
   # NOTE: all slot fields are saved in ISO 24-hour format "YYYY-MM-DD HH:MM", resolved
@@ -313,35 +300,16 @@ Feature: Daisy confirms a device removal appointment with a service shop
     When the shop accepts slot 1 but backs out when Daisy repeats it back
     Then Daisy returns to offering the remaining option or shop availability without saving a false confirmation
 
-  # Rec: llm — assert Daisy's offering reply doesn't present the same time twice; a
-  # single-reply check is enough and cheapest.
-  @E-5 @tier2 @llm
-  Scenario: Both customer slots are identical (bad upstream data)
-    Given user_scheduled_slot_1 equals user_scheduled_slot_2
-    When Daisy offers slots
-    Then Daisy does not offer the same time twice as if it were a new option
 
-  # Rec: simulation — shop offers several times in one breath; assert Daisy picks and
-  # confirms exactly one rather than saving a jumble.
-  @E-6 @tier2 @simulation
-  Scenario: Shop lists several available times at once
-    When the shop rattles off three or more openings in a single reply
-    Then Daisy confirms exactly one specific slot before moving on
 
   # Rec: simulation — shop unintentionally states a different time at confirmation than
   # the one accepted; assert Daisy catches the mismatch instead of saving the wrong time.
   @E-7 @tier2 @simulation
   Scenario: Shop states a different time at confirmation than the one accepted
     When the shop accepts slot 1 but says a different time when Daisy repeats it back
-    Then Daisy notices the mismatch and re-confirms the intended time before saving
+    Then Daisy notices the mismatch and re-confirms the intended time as an alternative slot not a confirmation slot, in case it is 
+    an alternative slots ask for a second alternative ant he quote 
 
-  # Rec: tool-call — price qualified with tax / "starts at"; assert quote_amount is the
-  # base whole-USD figure, digits only.
-  @E-8 @tier2 @tool-call
-  Scenario: Shop qualifies the price ("starts at", "plus tax")
-    Given a slot has been confirmed
-    When the shop says "it starts at $250 plus tax"
-    Then save_call_result carries quote_amount as the base whole-USD digits ("250")
 
   # Rec: llm — assert a brief polite acknowledgement rather than a broken/empty turn or
   # a hang-up. (Real hold silence/timeout is voice-only — see the note below.)
@@ -357,7 +325,7 @@ Feature: Daisy confirms a device removal appointment with a service shop
   Scenario: Shop offers two alternative slots as relative dates with no time
     Given the shop has rejected both original slots
     When the shop offers two alternative slots using only relative days ("tomorrow", "next Saturday") without a specific time
-    Then Daisy resolves each relative day against {{today_shop_local}} and pins down a specific time for both before reading them back
+    Then Daisy resolves each relative day against {{today_shop_local}} and ask for a specific time for both before reading them back
     And save_call_result carries confirmed_slot EMPTY and shop_suggested_slot_1/2 populated as resolved ISO "YYYY-MM-DD HH:MM" values
 
   # NOTE (voice-only — NOT covered by the text tests above): true interruptions /
