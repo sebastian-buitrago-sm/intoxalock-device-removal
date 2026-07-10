@@ -125,70 +125,81 @@ Feature: Daisy confirms an installation appointment with a service shop
     And save_call_result carries confirmed_slot EMPTY, shop_suggested_slot_1 populated (ISO format), shop_suggested_slot_2 EMPTY, and quote_amount populated
 
   # ===================================================================
-  # SUITE T2 — branches & robustness.
+  # SUITE T2 — branches & robustness. Every scenario here uses simulation or
+  # partial-sim, never tool-call: where a scenario completes the workflow, its
+  # success_condition checks the quote + save_call_result + end_call together, so no
+  # separate tool-call test is added just to re-check the save_call_result payload.
   # ===================================================================
 
-  # Rec: tool-call — the whole point is a payload rule (shop_suggested_slot_2 empty);
-  # deterministic and cheap. This scenario stops before the quote step; see T1-5 for the
-  # same branch carried through to a quote (the full happy-path version).
-  @T2-1 @tier2 @tool-call @result_saved
+  # Rec: partial-sim — the point is a payload rule (shop_suggested_slot_2 empty); seed
+  # past the reject-both turns so only the one-alternative offer is simulated. This
+  # scenario stops before the quote step; see T1-5 for the same branch carried through
+  # to a quote (the full happy-path version).
+  @T2-1 @tier2 @partial-sim @result_saved
   Scenario: Shop rejects both slots and offers only ONE alternative
-    When the shop rejects slot 1 and slot 2
-    And the shop offers only one alternative slot
+    Given the shop has rejected both original slots
+    When the shop offers only one alternative slot
     Then Daisy reads that single alternative back for accuracy
     And save_call_result carries confirmed_slot empty, shop_suggested_slot_1 populated (ISO format), and shop_suggested_slot_2 empty
 
-  # Rec: partial-sim — correction handling is multi-turn behavior, but seeding to the
-  # confirmation step avoids re-simulating Steps 1-2 (cheaper, lower variance).
-  @T2-2 @tier2 @partial-sim
-  Scenario: Shop corrects the slot Daisy repeats back
-    Given the conversation has reached the confirmation step with slot 1 accepted
-    When Daisy repeats the slot back and the shop corrects a detail (e.g. time)
+  # Rec: partial-sim — a deliberate flip-flop between the customer's two known slots
+  # (distinct from E-4's full retraction and E-7's unintentional mismatch); seeding to
+  # the confirmation step avoids re-simulating Steps 1-2 (cheaper, lower variance).
+  @T2-2 @tier2 @partial-sim @result_saved
+  Scenario: Shop reverses to the other slot after Daisy confirms
+    Given the conversation has reached the confirmation step with slot 2 accepted
+    When Daisy repeats the slot back and the shop says they actually want slot 1
     Then Daisy re-confirms the corrected slot before proceeding
-    And the saved confirmed_slot reflects the correction, not the original
+    And Daisy asks for the quote, then save_call_result carries the corrected confirmed_slot (not the original) and end_call fires before the call closes
 
   # Rec: simulation — the risk is behavioral (does Daisy accept gracefully WITHOUT
-  # pressing?), which can't be scripted. quote_amount-empty can ride in the success
-  # condition; add a tool-call only if payload precision later regresses.
-  @T2-3 @tier2 @simulation
+  # pressing?), which can't be scripted.
+  @T2-3 @tier2 @simulation @result_saved
   Scenario: Shop declines or cannot give a quote by phone
     Given a slot has been confirmed
     When Daisy asks for a quote and the shop declines or defers
     Then Daisy accepts gracefully without pressing
     And save_call_result carries quote_amount empty
+    And Daisy ends the call politely
 
-  # Rec: simulation — the point is polite acknowledgement + clean close (behavior);
-  # no_data_reason content is judged, not exact.
+  # Rec: simulation — same "shop can't proceed" guardrail path as T1-4/T2-5 (prompt.py
+  # names "asks you to call back" explicitly), so Daisy skips the quote step entirely;
+  # the point is polite acknowledgement + clean close (behavior), no_data_reason content
+  # is judged, not exact.
   @T2-4 @tier2 @simulation @result_saved
   Scenario: Shop asks Daisy to call back later
     When the shop asks to be called back at another time
-    Then Daisy acknowledges politely and ends the call
-    And save_call_result carries no_data_reason describing the callback request
+    Then Daisy acknowledges politely and does NOT attempt the quote step
+    And save_call_result carries all four slot/quote fields empty and no_data_reason describing the callback request
+    And Daisy ends the call
 
-  # Rec: tool-call — assertion is purely payload (no_data_reason set, all slots/quote
-  # empty) and the shop's line scripts cleanly; cheaper than a sim.
-  @T2-5 @tier2 @tool-call @result_saved
+  # Rec: simulation — same skip-quote -> save -> end_call pattern as T1-4 (no
+  # appointment data to gather is a completed workflow, not a mid-flow checkpoint).
+  @T2-5 @tier2 @simulation @result_saved
   Scenario: Shop has no appointment capacity at all
     When the shop states they cannot take any installation appointments
-    Then save_call_result carries no_data_reason populated and all slot/quote fields empty
+    Then Daisy does NOT attempt the quote step
+    And save_call_result carries no_data_reason populated and all slot/quote fields empty
+    And Daisy ends the call politely
 
   # Rec: simulation (flakiest — run N times, gate on pass-rate) — inherently multi-turn
   # emergent behavior; no scripted type can test "keeps asking until resolved".
-  @T2-6 @tier2 @simulation
+  @T2-6 @tier2 @simulation @result_saved
   Scenario: Shop gives non-committal answers repeatedly
     When the shop responds with "maybe" or "let me check" several times instead of a clear yes/no
     Then Daisy keeps asking one clarifying question at a time and reaches a resolution within simulation_max_turns
+    And once resolved, Daisy asks for the quote, then save_call_result and end_call both fire before the call closes
 
   # Rec: partial-sim — same correction-after-readback behavior as T2-2, but for the
   # two-alternative-slots branch (T1-3/T1-5): the shop offers two alternatives, Daisy
   # reads both back for accuracy, then corrects ONE of them. Seeding to the read-back
   # avoids re-simulating the reject-then-offer turns.
-  @T2-7 @tier2 @partial-sim
+  @T2-7 @tier2 @partial-sim @result_saved
   Scenario: Shop corrects one of two alternative slots after Daisy reads them back
     Given the conversation has reached the point where the shop offered two alternative slots and Daisy has read both back for accuracy
     When the shop corrects a detail (e.g. time) on one of the two alternatives
     Then Daisy re-reads both alternatives back with the correction applied before proceeding
-    And save_call_result carries confirmed_slot EMPTY and shop_suggested_slot_1/2 reflecting the corrected values (ISO format)
+    And Daisy asks for the quote, then save_call_result carries confirmed_slot EMPTY and shop_suggested_slot_1/2 reflecting the corrected values (ISO format), and end_call fires before the call closes
 
   # ===================================================================
   # SUITE T3 — guardrails & adversarial. Most are SINGLE-REPLY checks, so

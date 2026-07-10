@@ -34,7 +34,7 @@ from elevenlabs.types import ToolRequestModel
 from elevenlabs_agent.client import build_client
 from elevenlabs_agent.config import Settings, load_settings
 from elevenlabs_agent.sync.agent_sync import sync_agent
-from suites import t1_core_happy_paths
+from suites import t1_core_happy_paths, t2_shop_pushback_and_corrections
 
 SuiteBuilder = Callable[[str], list[TestsCreateRequestBody]]
 
@@ -56,6 +56,10 @@ class Suite:
 # there and registering it here with the folder its tests should live in.
 SUITES: list[Suite] = [
     Suite(folder="T1_core_happy_paths", build=t1_core_happy_paths.build),
+    Suite(
+        folder="T2_shop_pushback_and_corrections",
+        build=t2_shop_pushback_and_corrections.build,
+    ),
 ]
 
 

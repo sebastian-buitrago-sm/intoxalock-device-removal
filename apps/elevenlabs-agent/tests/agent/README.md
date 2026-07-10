@@ -33,7 +33,7 @@ run order.
 ## Organization & selecting which tests to run
 
 Each suite maps to an ElevenLabs **folder** named for the suite module
-(`<identifier>_<description>` — e.g. `T1_core_happy_paths`, `T2_branches`);
+(`<identifier>_<description>` — e.g. `T1_core_happy_paths`, `T2_shop_pushback_and_corrections`);
 `sync_tests.py` creates the folder and places that suite's tests in it, so the
 dashboard groups them. Test names carry a stable snake_case slug prefix — e.g.
 `t1_1__tool_call · shop accepts slot 1 and quotes` — that is the identity handle

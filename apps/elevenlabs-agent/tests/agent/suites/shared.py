@@ -6,9 +6,10 @@ the slots — or the {{...}} render empty and the quote turn reads unnaturally.
 """
 
 import re
-from typing import Any
+from typing import Any, Literal
 
 from elevenlabs.types import (
+    ConversationHistoryTranscriptCommonModelInput,
     UnitTestToolCallParameterEval_Exact,
     UnitTestToolCallParameterEval_Regex,
 )
@@ -65,6 +66,19 @@ def body_path(field: str) -> str:
     "body." — a bare field name evaluates as "not found in tool call parameters".
     """
     return f"body.{field}"
+
+
+def turn(
+    role: Literal["user", "agent"], message: str, at_sec: int
+) -> ConversationHistoryTranscriptCommonModelInput:
+    """Build one seeded chat_history turn for a partial-sim test.
+
+    role "agent" is Daisy; role "user" is the shop (ElevenLabs' generic name for
+    the other party on the call, regardless of call direction).
+    """
+    return ConversationHistoryTranscriptCommonModelInput(
+        role=role, message=message, time_in_call_secs=at_sec
+    )
 
 
 def slug_name(slug: str, description: str) -> str:
