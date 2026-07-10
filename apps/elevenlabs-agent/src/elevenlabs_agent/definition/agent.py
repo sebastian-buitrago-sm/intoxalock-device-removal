@@ -35,8 +35,8 @@ DYNAMIC_VARIABLE_PLACEHOLDERS: dict[str, str | float | int | bool | list[Any] | 
     "user_vehicle_model": "model of the customer's vehicle, e.g. Civic",
     "user_vehicle_year": "model year of the customer's vehicle, e.g. 2019",
     "today_shop_local": (
-        "today's date at the shop's location, e.g. 'Thursday, July 9, 2026' — reference point for "
-        "resolving relative dates the shop states, such as 'tomorrow' or 'next Monday'"
+        "today's date at the shop's location, as a weekday, month, day and year — the reference "
+        "point for resolving relative dates the shop states, such as 'tomorrow' or 'next Monday'"
     ),
 }
 
