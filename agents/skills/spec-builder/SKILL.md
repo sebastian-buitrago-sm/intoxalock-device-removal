@@ -78,3 +78,45 @@ End with: `slice built -> <slice> (<n> scenarios green, gates passing)`
 Then ask whether to run `judge_iteration` on this slice, or build another slice.
 Wait for my choice — don't proceed on your own.
 </done>
+
+<worked-example>
+`examples/todo-lambda/` (bundled with this skill) is a real, gate-passing `CreateTodo`
+slice, built TDD-first against a `POST /todos` scenario. Read it — not just this
+summary — for the shape every slice should end up in:
+
+```
+examples/todo-lambda/src/todo_lambda/
+  handler.py                          # composition root: wires adapters, dispatches routes
+  shared/
+    domain/errors.py                  # DomainError, ValidationError base classes
+    handlers/request.py                # parse_json_object, BadRequest
+    handlers/problem.py                 # RFC 9457 problem+json responses
+    observability/config.py            # structlog setup
+  features/todos/
+    domain/todo.py                     # Todo — frozen-shaped Pydantic model, field validators
+    ports/todo_repository.py           # TodoRepository(Protocol) — use-case-driven, not CRUD
+    usecases/create_todo.py            # CreateTodoCommand (frozen) + CreateTodo.__call__
+    adapters/in_memory_todo_repository.py  # hand-rolled fake implementing the port
+    handlers/create_todo.py            # translates API Gateway event <-> usecase
+    handlers/routes.py                 # route constants (TODOS = "/todos")
+
+examples/todo-lambda/tests/todos/
+  integration/test_create_todo.py      # handler() end-to-end, one scenario per test
+  integration/test_request_logging.py  # cross-cutting concern, still driven through handler()
+  integration/conftest.py              # autouse fixture resets in-memory store per test
+```
+
+What to copy from it:
+- **Port names are verbs on the use case, not CRUD.** `TodoRepository.add`, not
+  `save`/`create`/`insert`.
+- **Commands are frozen Pydantic models** (`CreateTodoCommand(BaseModel, frozen=True)`);
+  the use case is a class with one public `__call__`.
+- **Domain errors form a small hierarchy** (`DomainError` -> `ValidationError`) and a
+  shared `problem_response()` maps them to HTTP status without the use case knowing
+  about HTTP.
+- **Integration tests call `handler()` with a synthetic API Gateway event** and assert
+  on status code + body shape — never on adapter internals — so the tests survive
+  swapping `InMemoryTodoRepository` for a real store later.
+- **One test per scenario, named after the scenario**, not grouped into a single
+  parametrized mega-test — keeps the RED/GREEN cycle one-to-one with `.feature` lines.
+</worked-example>

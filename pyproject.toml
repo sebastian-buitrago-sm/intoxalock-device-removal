@@ -56,11 +56,11 @@ testpaths = ["packages", "apps"]
 asyncio_mode = "auto"
 
 [tool.importlinter]
-root_packages = ["core", "elevenlabs_agent", "todo_lambda"]
+root_packages = ["core", "elevenlabs_agent"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "core is a pure sink - must not import apps"
 type = "forbidden"
 source_modules = ["core"]
-forbidden_modules = ["elevenlabs_agent", "todo_lambda"]
+forbidden_modules = ["elevenlabs_agent"]
